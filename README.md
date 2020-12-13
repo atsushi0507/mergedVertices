@@ -15,4 +15,3 @@ asetup AnalysisBase,21.2.122
 ## Input files requirements
 The input ntuples for skimming program are created by the FactoryTools.  
 https://gitlab.cern.ch/atlas-phys-susy-wg/Common/FactoryTools/  
-
