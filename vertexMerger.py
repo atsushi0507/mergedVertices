@@ -5,7 +5,7 @@ import argparse
 from utils import *
 
 p = argparse.ArgumentParser()
-p.add_argument("-i", "--inputFile", help="Specify input file list", defaut="inputList.txt")
+p.add_argument("-i", "--inputFile", help="Specify input file list", default="inputList.txt")
 p.add_argument("-o", "--outputDir", help="Specify output directory", default="output")
 p.add_argument("-u", "--doUnblind", help="If this flag is used, the signal region will be opened", action="store_true")
 p.add_argument("-w", "--doWeight", help="If this flag is used, merged mass weighting is applied", action="store_true")
