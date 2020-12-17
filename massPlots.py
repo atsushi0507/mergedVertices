@@ -13,6 +13,7 @@ label = "Work in Progress"
 
 c1 = r.TCanvas("c1", "c1", 800, 600)
 inputFile = r.TFile("run2_full_weighted.root", "READ")
+oldFile = r.TFile("recoMass_run2Full.root", "READ")
 
 date = str(datetime.date.today())
 directory = str(os.getcwd()) + "/plots/" + date + "/mass"
@@ -25,6 +26,13 @@ outputFile = r.TFile("massHists.root", "RECREATE")
 h_recoMass4, h_dvmass4, h_mergedMass4, h_mergedMass4_reweight, h_mergedMass4_sigWeight = getMassHist(inputFile, 4, 20)
 h_recoMass5, h_dvmass5, h_mergedMass5, h_mergedMass5_reweight, h_mergedMass5_sigWeight = getMassHist(inputFile, 5, 20)
 h_recoMass6, h_dvmass6, h_mergedMass6, h_mergedMass6_reweight, h_mergedMass6_sigWeight = getMassHist(inputFile, 6, 20)
+# Get mass from old ntuple
+h_oldMass4 = oldFile.Get("mass4").Rebin(20)
+h_oldMass4_inside_BP = oldFile.Get("mass4_inside_BP").Rebin(20)
+h_oldMass4_inside_IBL = oldFile.Get("mass4_inside_IBL").Rebin(20)
+h_oldMass4_PIX = oldFile.Get("mass4_PIX").Rebin(20)
+h_oldMass4_inside_SCT = oldFile.Get("mass4_inside_SCT").Rebin(20)
+oldHists_region = [h_oldMass4_inside_BP, h_oldMass4_inside_IBL, h_oldMass4_PIX, h_oldMass4_inside_SCT]
 
 h_recoMass4.Write()
 h_recoMass5.Write()
@@ -37,6 +45,13 @@ recoAndReweight = [h_recoMass4, h_dvmass4, h_mergedMass4_sigWeight, h_mergedMass
 legList = ["Reconstructed", "calculated", "Weighted with sig", "Weighted with sig #times dR"]
 MassHists(c1, recoAndReweight, legList, directory, "recoAndReweight4_logy", label, logy=True)
 MassHists(c1, recoAndReweight, legList, directory, "recoAndReweight4", label, logy=False)
+
+recoAndReweight.append(h_oldMass4)
+legList.append("old ntuple")
+
+oldAndNew = [h_recoMass4, h_dvmass4, h_oldMass4]
+legOldAndNew = ["Reconstructed", "Calculated", "Reconstructed (old ntuple)"]
+MassHists(c1, oldAndNew, legOldAndNew, directory, "oldAndNew_logy", label, logy=True)
 
 regions = ["inside_BP", "inside_IBL", "PIX", "inside_SCT"]
 
@@ -56,5 +71,7 @@ for i in range(len(recoMass4_region)):
     bin1 = h_recoMass4.FindBin(100)
     recoMass4_region[i].GetXaxis().SetRange(0, bin1)
     dvmass4_region[i].GetXaxis().SetRange(0, bin1)
-    histList = [recoMass4_region[i], dvmass4_region[i], mergedMass4_reweight_region[i], mergedMass4_sigWeight_region[i]]
+    histList = [recoMass4_region[i], dvmass4_region[i], mergedMass4_reweight_region[i], mergedMass4_sigWeight_region[i], oldHists_region[i]]
     MassHists(c1, histList, legList, directory, "recoAndReweight4_{}_logy".format(regions[i]), label, logy=True)
+    massList = [recoMass4_region[i], dvmass4_region[i], oldHists_region[i]]
+    MassHists(c1, massList, legOldAndNew, directory, "oldAndNew_{}_logy".format(regions[i]), label, logy=True)

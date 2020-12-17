@@ -58,3 +58,47 @@ def ratioPlot(h_same, h_mixed, directory, outputName, label):
     ATLASLabel(0.50, 0.85, label)
     c1.Update()
     c1.Print("{}/{}.pdf".format(directory, outputName))
+
+def getMassHist(inFile, nTracks=4, rebin=1):
+    h_reco = inFile.Get("recoDV_m_{}track".format(nTracks)).Rebin(rebin)
+    h_dvmass = inFile.Get("DV_m_{}track".format(nTracks)).Rebin(rebin)
+    h_mergedMass = inFile.Get("mergedMass{}_mixed".format(nTracks)).Rebin(rebin)
+    h_mergedMass_reweight = inFile.Get("mergedMass{}_weight".format(nTracks)).Rebin(rebin)
+    h_mergedMass_sigWeight = inFile.Get("mergedMass{}_sigWeight".format(nTracks)).Rebin(rebin)
+
+    bin = h_reco.FindBin(99)
+    h_reco.GetXaxis().SetRange(0, bin)
+    h_dvmass.GetXaxis().SetRange(0, bin)
+    return h_reco, h_dvmass, h_mergedMass, h_mergedMass_reweight, h_mergedMass_sigWeight
+
+def MassHists(c1, massHists, legs, directory, outputName, label, logy=True):
+    colors = [r.kBlack, r.kRed, r.kBlue, r.kOrange, r.kGreen, r.kMagenta, r.kCyan]
+
+    leg = r.TLegend(0.55, 0.65, 0.85, 0.85)
+    leg.SetBorderSize(0)
+    leg.SetFillStyle(0)
+    leg.SetTextSize(0.035)
+    maximum = -1e10
+    minimum = 1e10
+    if (logy):
+        r.gPad.SetLogy(1)
+    else:
+        r.gPad.SetLogy(0)
+    for i in range(len(massHists)):
+        tmpMax = massHists[i].GetMaximum()
+        tmpMin = massHists[i].GetMinimum()
+        if (tmpMax > maximum):
+            maximum = tmpMax
+        if (tmpMin < minimum):
+            minimum = tmpMin
+        massHists[i].SetLineColor(colors[i])
+        massHists[i].SetMarkerColor(colors[i])
+        leg.AddEntry(massHists[i], legs[i], "l")
+    massHists[0].SetMaximum(maximum*1.1)
+    massHists[0].Draw("axis")
+    for i in range(len(massHists)):
+        massHists[i].Draw("hist same")
+    leg.Draw()
+    ATLASLabel(0.35, 0.88, label)
+    c1.Print("{}/{}.pdf".format(directory, outputName))
+        

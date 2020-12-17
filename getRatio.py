@@ -87,6 +87,50 @@ h_dRJetDV_mixed.Scale(1./h_dRJetDV_mixed.Integral())
 dRJetDV_ratio = getRatio(h_dRJetDV_same, h_dRJetDV_mixed)
 ratioPlot(h_dRJetDV_same, h_dRJetDV_mixed, directory, "dRJetDV_ratio", label)
 
+dR_jetDV1_same_region = []
+dR_jetDV1_region = []
+dR_jetDV2_same_region = []
+dR_jetDV2_region = []
+dR_jetDV_same_region = []
+dR_jetDV_region = []
+for region in regions:
+    dR_jetDV1_same_region.append(inFile.Get("dR_jetDV1_same_{}".format(region)))
+    dR_jetDV1_region.append(inFile.Get("dR_jetDV1_mixed_{}".format(region)))
+    dR_jetDV2_same_region.append(inFile.Get("dR_jetDV2_same_{}".format(region)))
+    dR_jetDV2_region.append(inFile.Get("dR_jetDV2_mixed_{}".format(region)))
+    dR_jetDV_same_region.append(inFile.Get("dR_jetDV_same_{}".format(region)))
+    dR_jetDV_region.append(inFile.Get("dR_jetDV_mixed_{}".format(region)))
+
+h_dR_jetDV1_ratio_region = []
+h_dR_jetDV2_ratio_region = []
+h_dR_jetDV_ratio_region = []
+for i in range(len(dR_jetDV1_region)):
+    dR_jetDV1_same_region[i].Sumw2()
+    dR_jetDV1_region[i].Sumw2()
+    dR_jetDV2_same_region[i].Sumw2()
+    dR_jetDV2_region[i].Sumw2()
+    dR_jetDV_same_region[i].Sumw2()
+    dR_jetDV_region[i].Sumw2()
+    
+    dR_jetDV1_same_region[i].Scale(1./dR_jetDV1_same_region[i].Integral())
+    dR_jetDV1_region[i].Scale(1./dR_jetDV1_region[i].Integral())
+    dR_jetDV2_same_region[i].Scale(1./dR_jetDV2_same_region[i].Integral())
+    dR_jetDV2_region[i].Scale(1./dR_jetDV2_region[i].Integral())
+    dR_jetDV_same_region[i].Scale(1./dR_jetDV_same_region[i].Integral())
+    dR_jetDV_region[i].Scale(1./dR_jetDV_region[i].Integral())
+    h_dR_jetDV1_ratio_region.append(getRatio(dR_jetDV1_same_region[i], dR_jetDV1_region[i]))
+    h_dR_jetDV2_ratio_region.append(getRatio(dR_jetDV2_same_region[i], dR_jetDV2_region[i]))
+    h_dR_jetDV_ratio_region.append(getRatio(dR_jetDV_same_region[i], dR_jetDV_region[i]))
+    
+    ratioPlot(dR_jetDV1_same_region[i], dR_jetDV1_region[i], directory, "dRjetDV1_ratio_{}".format(regions[i]), label)
+    ratioPlot(dR_jetDV2_same_region[i], dR_jetDV2_region[i], directory, "dRjetDV2_ratio_{}".format(regions[i]), label)
+    ratioPlot(dR_jetDV_same_region[i], dR_jetDV_region[i], directory, "dRjetDV_ratio_{}".format(regions[i]), label)
+
+for i in range(len(h_dR_jetDV1_ratio_region)):
+    h_dR_jetDV1_ratio_region[i].Write()
+    h_dR_jetDV2_ratio_region[i].Write()
+    h_dR_jetDV_ratio_region[i].Write()
+    
 h_ratio4track.Write()
 dRJetDV1_ratio.Write()
 dRJetDV2_ratio.Write()
