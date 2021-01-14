@@ -99,6 +99,28 @@ while True:
         h_mergedMass4_weight_region = [r.TH1D("mergedMass4_weight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
         h_mergedMass5_weight_region = [r.TH1D("mergedMass5_weight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
         h_mergedMass6_weight_region = [r.TH1D("mergedMass6_weight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+
+        # apply weight, with no significance cut
+        h_mergedMass4_sigWeight_noSigCut = r.TH1D("mergedMass4_sigWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_sigWeight_noSigCut = r.TH1D("mergedMass5_sigWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_sigWeight_noSigCut = r.TH1D("mergedMass6_sigWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_dRWeight_noSigCut = r.TH1D("mergedMass4_dRWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_dRWeight_noSigCut = r.TH1D("mergedMass5_dRWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_dRWeight_noSigCut = r.TH1D("mergedMass6_dRWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_weight_noSigCut = r.TH1D("mergedMass4_weight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_weight_noSigCut = r.TH1D("mergedMass5_weight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_weight_noSigCut = r.TH1D("mergedMass6_weight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sigWeight_noSigCut_region = [r.TH1D("mergedMass4_sigWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_sigWeight_noSigCut_region = [r.TH1D("mergedMass5_sigWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_sigWeight_noSigCut_region = [r.TH1D("mergedMass6_sigWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_dRWeight_noSigCut_region = [r.TH1D("mergedMass4_dRWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_dRWeight_noSigCut_region = [r.TH1D("mergedMass5_dRWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_dRWeight_noSigCut_region = [r.TH1D("mergedMass6_dRWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_weight_noSigCut_region = [r.TH1D("mergedMass4_weight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_weight_noSigCut_region = [r.TH1D("mergedMass5_weight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_weight_noSigCut_region = [r.TH1D("mergedMass6_weight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        
+        
         # DV-jet
         h_dR_jetDV_same = r.TH1D("dR_jetDV_same", "dR(ClosestJet_{DV_{1}}), DV_{cm}", 120, 0., 6.)
         h_dR_jetDV_mixed = r.TH1D("dR_jetDV_mixed", "dR(ClosestJet_{DV_{1}}), DV_{cm}", 120, 0., 6.)
@@ -129,7 +151,7 @@ while True:
         h_DV_m = r.TH1D("DV_m", ";m_{DV} [GeV]", 5000, 0., 500.)
         h_DV_m_2track = r.TH1D("DV_m_2track", ";m_{DV} [GeV]", 5000, 0., 500.)
         h_DV_m_3track = r.TH1D("DV_m_3track", ";m_{DV} [GeV]", 5000, 0., 500.)
-        h_DV_m_4track = r.TH1D("DV_m_4track", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_DV_m_4track = r.TH1D("DV_m_4track", ";m_{DV} [GeV]", 250, 0., 25.)
         h_DV_m_5track = r.TH1D("DV_m_5track", ";m_{DV} [GeV]", 200, 0., 20.)
         h_DV_m_6track = r.TH1D("DV_m_6track", ";m_{DV} [GeV]", 200, 0., 20.)
         h_DV_m_7track = r.TH1D("DV_m_7track", ";m_{DV} [GeV]", 200, 0., 20.)
@@ -137,7 +159,7 @@ while True:
         h_DV_m_region = [r.TH1D("DV_m_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
         h_DV_m_2track_region = [r.TH1D("DV_m_2track_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
         h_DV_m_3track_region = [r.TH1D("DV_m_3track_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
-        h_DV_m_4track_region = [r.TH1D("DV_m_4track_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_DV_m_4track_region = [r.TH1D("DV_m_4track_"+regions[i], ";m_{DV} [GeV]", 250, 0., 25.) for i in regions]
         h_DV_m_5track_region = [r.TH1D("DV_m_5track_"+regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
         h_DV_m_6track_region = [r.TH1D("DV_m_6track_"+regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
         h_DV_m_7track_region = [r.TH1D("DV_m_7track_"+regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
@@ -145,14 +167,14 @@ while True:
         h_recoDV_m = r.TH1D("recoDV_m", ";m_{DV} [GeV]", 5000, 0., 500.)
         h_recoDV_m_2track = r.TH1D("recoDV_m_2track", ";m_{DV} [GeV]", 5000, 0., 500.)
         h_recoDV_m_3track = r.TH1D("recoDV_m_3track", ";m_{DV} [GeV]", 5000, 0., 500.)
-        h_recoDV_m_4track = r.TH1D("recoDV_m_4track", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_recoDV_m_4track = r.TH1D("recoDV_m_4track", ";m_{DV} [GeV]", 250, 0., 25.)
         h_recoDV_m_5track = r.TH1D("recoDV_m_5track", ";m_{DV} [GeV]", 200, 0., 20.)
         h_recoDV_m_6track = r.TH1D("recoDV_m_6track", ";m_{DV} [GeV]", 200, 0., 20.)
         h_recoDV_m_7track = r.TH1D("recoDV_m_7track", ";m_{DV} [GeV]", 200, 0., 20.)
         h_recoDV_m_region = [r.TH1D("recoDV_m_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
         h_recoDV_m_2track_region = [r.TH1D("recoDV_m_2track_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
         h_recoDV_m_3track_region = [r.TH1D("recoDV_m_3track_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
-        h_recoDV_m_4track_region = [r.TH1D("recoDV_m_4track_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_recoDV_m_4track_region = [r.TH1D("recoDV_m_4track_" + regions[i], ";m_{DV} [GeV]", 250, 0., 25.) for i in regions]
         h_recoDV_m_5track_region = [r.TH1D("recoDV_m_5track_" + regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
         h_recoDV_m_6track_region = [r.TH1D("recoDV_m_6track_" + regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
         h_recoDV_m_7track_region = [r.TH1D("recoDV_m_7track_" + regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
@@ -355,6 +377,14 @@ while True:
                         h_mergedMass4_mixed.Fill(mergedMass)
                         h_sig4_mixed_region[region1].Fill(sig)
                         h_mergedMass4_region[region1].Fill(mergedMass)
+
+                        if (doWeight):
+                            h_mergedMass4_sigWeight_noSigCut.Fill(mergedMass, sigWeight)
+                            h_mergedMass4_sigWeight_noSigCut_region[region1].Fill(mergedMass, sigWeight_region)
+                            h_mergedMass4_dRWeight_noSigCut.Fill(mergedMass, drWeight)
+                            h_mergedMass4_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
+                            h_mergedMass4_weight_noSigCut.Fill(mergedMass, weight)
+                            h_mergedMass4_weight_noSigCut_region[region1].Fill(mergedMass, weight_region)
                         if (sig < 100.):
                             h_mergedMass4_sig100Cut.Fill(mergedMass)
                             h_mergedMass4_sig100Cut_region[region1].Fill(mergedMass)
@@ -370,6 +400,13 @@ while True:
                         h_mergedMass5_mixed.Fill(mergedMass)
                         h_sig5_mixed_region[region1].Fill(sig)
                         h_mergedMass5_region[region1].Fill(mergedMass)
+                        if (doWeight):
+                            h_mergedMass5_sigWeight_noSigCut.Fill(mergedMass, sigWeight)
+                            h_mergedMass5_sigWeight_noSigCut_region[region1].Fill(mergedMass, sigWeight_region)
+                            h_mergedMass5_dRWeight_noSigCut.Fill(mergedMass, drWeight)
+                            h_mergedMass5_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
+                            h_mergedMass5_weight_noSigCut.Fill(mergedMass, weight)
+                            h_mergedMass5_weight_noSigCut_region[region1].Fill(mergedMass, weight_region)
                         if (sig < 100.):
                             h_mergedMass5_sig100Cut.Fill(mergedMass)
                             h_mergedMass5_sig100Cut_region[region1].Fill(mergedMass)
@@ -385,6 +422,13 @@ while True:
                         h_mergedMass6_mixed.Fill(mergedMass)
                         h_sig6_mixed_region[region1].Fill(sig)
                         h_mergedMass6_region[region1].Fill(mergedMass)
+                        if (doWeight):
+                            h_mergedMass6_sigWeight_noSigCut.Fill(mergedMass, sigWeight)
+                            h_mergedMass6_sigWeight_noSigCut_region[region1].Fill(mergedMass, sigWeight_region)
+                            h_mergedMass6_dRWeight_noSigCut.Fill(mergedMass, drWeight)
+                            h_mergedMass6_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
+                            h_mergedMass6_weight_noSigCut.Fill(mergedMass, weight)
+                            h_mergedMass6_weight_noSigCut_region[region1].Fill(mergedMass, weight_region)
                         if (sig < 100.):
                             h_mergedMass6_sig100Cut.Fill(mergedMass)
                             h_mergedMass6_sig100Cut_region[region1].Fill(mergedMass)

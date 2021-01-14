@@ -1,7 +1,7 @@
 import ROOT as r
 import sys
-#sys.path.append("/Users/amizukam/DVJets/atlasstyle")
-sys.path.append("/Users/atsushi/mvstudy_dv")
+sys.path.append("/Users/amizukam/DVJets/atlasstyle")
+#sys.path.append("/Users/atsushi/mvstudy_dv")
 import os, datetime
 from AtlasStyle import *
 from AtlasLabel import *
@@ -36,7 +36,6 @@ mergedMass4_sigWeight.SetLineColor(r.kBlue)
 mergedMass4_sigWeight.SetMarkerColor(r.kBlue)
 
 sf = DV_m_4track.Integral() / mergedMass4.Integral()
-print(sf)
 
 leg = r.TLegend(0.65, 0.65, 0.88, 0.85)
 leg.SetBorderSize(0)
@@ -85,4 +84,6 @@ DV_m_region = []
 mergedMass4_region = []
 mergedMass4_sigWeight_region = []
 for region in regions:
-    
+    DV_m_region.append(inputFile.Get("DV_m_4track_{}".format(region)).Rebin(10))
+    mergedMass4_region.append(inputFile.Get("mergedMass4_{}".format(region)).Rebin(10))
+    mergedMass4_sigWeight_region.append(inputFile.Get("mergedMass4_sigWeight_{}".format(region)).Rebin(10))

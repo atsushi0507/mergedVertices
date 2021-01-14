@@ -80,6 +80,8 @@ def getEvents(tree, eventID, doUnblind):
             if (not doUnblind):
                 if (tree.DV_m[idv] > 10. and tree.DV_nTracks[idv] >= 5):
                     continue
+                if (tree.DV_m[idv] > 20. and tree.DV_nTracks[idv] == 4):
+                    continue
                 if (tree.DV_rxy[idv] < 22.):
                     if (tree.DV_m[idv] > 10. and tree.DV_nTracksSel[idv] >= 5):
                         continue

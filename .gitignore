@@ -1,0 +1,8 @@
+.DS_Store
+.zshrc
+Reweighted/
+__pycache__/
+inputList/
+*.root
+output/
+plots/
