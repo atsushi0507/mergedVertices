@@ -3,6 +3,7 @@ import ROOT as r
 import random
 import argparse
 from utils import *
+import itertools
 
 p = argparse.ArgumentParser()
 p.add_argument("-i", "--inputFile", help="Specify input file list", default="inputList.txt")
@@ -84,10 +85,11 @@ while True:
 
         ### Histograms
         h_2track_mass = r.TH1D("2track_mass", ";m_{DV} [GeV]", 1000, 0., 5.)
+        h_3track_mass = r.TH1D("3track_mass", ";m_{DV} [GeV]", 1000, 0., 5.)
         h_4track_mass = r.TH1D("4track_mass", ";m_{DV} [GeV]", 1000, 0., 5.)
 
-        h_track1_mass = r.TH1D("track1", ";m_{DV} [GeV]", 1000, 0., 1.)
-        h_track2_mass = r.TH1D("track2", ";m_{DV} [GeV]", 1000, 0., 1.)
+        h_track1_mass = r.TH1D("track1", ";m_{DV} comb1 [GeV]", 2000, 0., 2.)
+        h_track2_mass = r.TH1D("track2", ";m_{DV} comb2 [GeV]", 2000, 0., 2.)
 
         # test
         for iEvent in range(len(events)):
@@ -104,11 +106,14 @@ while True:
                                        itrack[2],
                                        itrack[3])
                     dv_tracks += track
-                    if (nTracks == 2):
-                        h_2track_mass.Fill(m_dv)
-                    if (nTracks == 4):
-                        h_4track_mass.Fill(m_dv)
+                if (nTracks == 2):
+                    h_2track_mass.Fill(m_dv)
+                if (nTracks == 3):
+                    h_2track_mass.Fill(m_dv)
+                    trk_a, trk_b, trk_c = r.TLorentzVector(), r.TLorentzVector(), r.TLorentzVector()
                 if (nTracks == 4):
+                    h_4track_mass.Fill(m_dv)
+
                     track1 = r.TLorentzVector()
                     track2 = r.TLorentzVector()
                     track3 = r.TLorentzVector()
@@ -118,41 +123,14 @@ while True:
                     track3.SetPtEtaPhiM(dvtracks[idv][2][0], dvtracks[idv][2][1], dvtracks[idv][2][2], dvtracks[idv][2][3])
                     track4.SetPtEtaPhiM(dvtracks[idv][3][0], dvtracks[idv][3][1], dvtracks[idv][3][2], dvtracks[idv][3][3])
                     t = [track1, track2, track3, track4]
-                    for i in range(len(t)):
-                        for j in range(i+1, len(t)):
-                            trackMass_1 = (t[i] + t[j]).M()
-                            trackMass_2 = (t[0] + t[1]).M()
-                
+                    pairs = [[0,1,2,3], [0,2,1,3], [0,3,1,2]]
+                    for index in range(len(pairs)):
+                        i, j, k, l = pairs[index][0], pairs[index][1], pairs[index][2], pairs[index][3]
+                        trackMass_1 = (t[i] + t[j]).M()
+                        trackMass_2 = (t[k] + t[l]).M()
+                        h_track1_mass.Fill(trackMass_1)
+                        h_track2_mass.Fill(trackMass_2)
         
-        # For debugging
-        """
-        for iEvent in range(len(events)):
-            eventID = events[iEvent][0]
-            dv = events[iEvent][1]
-            dvtracks = events[iEvent][2]
-            for idv in range(len(dv)):
-                m_dv = dv[idv][3]
-                dv_tracks, nTracks, nTracksSel = getDVtracks(dvtracks[idv])
-                m_tracks = dv_tracks.M()
-                diff = r.TMath.Abs(m_dv - m_tracks)
-                counter += 1
-
-                if (dv[idv][5] != nTracks):
-                    print("Not matched the number of tracks, reco: {}, and counted: {}".format(dv[idv][5], nTracks))
-                if (dv[idv][6] != nTracksSel):
-                    print("Not matched the number of tracks, reco: {}, and counted: {}".format(dv[idv][6], nTracksSel))
-                if (diff > m_dv * 0.001):
-                    print("event: {} Different mass, m_DV: {}, and m_tracks: {}".format(eventID, m_dv, m_tracks))
-                    print(dvtracks[idv])
-                    region = getRegion(dv[idv][4])
-                    print(region, regions[region])
-                    missReco += 1
-
-                if (nTracks == 4 and m_dv > 10.):
-                    print(m_dv)
-                    print(dvtracks[idv])
-
-        """
 
         outputFile.Write()
         outputFile.Close()
