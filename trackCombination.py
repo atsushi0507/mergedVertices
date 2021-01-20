@@ -81,6 +81,12 @@ while True:
                 if (not tree.DV_passMaterialVeto_strict[idv]):
                     continue
                 """
+                """
+                if (tree.DV_nTracks[idv] >= 5. and tree.DV_m[idv] > 10.):
+                    continue
+                if (tree.DV_nTracks[idv] == 4 and tree.DV_m[idv] > 20.):
+                    continue
+                """
                 vertex.append([tree.DV_m[idv], tree.DV_nTracks[idv], tree.DV_rxy[idv], tree.DV_index[idv]])
                 track = []
 
@@ -93,7 +99,8 @@ while True:
                                   tree.dvtrack_DVIndex[itrack],
                                   tree.dvtrack_failedExtrapolation[itrack],
                                   r.TMath.Abs(tree.dvtrack_d0[itrack]/tree.dvtrack_errd0[itrack]),
-                                  tree.dvtrack_ptWrtDV[itrack]])
+                                  tree.dvtrack_ptWrtDV[itrack],
+                                  tree.dvtrack_charge[itrack]])
                 tracks.append(track)
             if (len(vertex) == 0):
                 continue
@@ -172,6 +179,12 @@ while True:
                     mass_24 = (track2 + track4).M()
                     mass_34 = (track3 + track4).M()
 
+                    charge1 = dvtracks[idv][0][9]
+                    charge2 = dvtracks[idv][1][9]
+                    charge3 = dvtracks[idv][2][9]
+                    charge4 = dvtracks[idv][3][9]
+
+                    """
                     pass_1 = trackCleaning(dv[idv], dvtracks[idv][0])
                     pass_2 = trackCleaning(dv[idv], dvtracks[idv][1])
                     pass_3 = trackCleaning(dv[idv], dvtracks[idv][2])
@@ -206,12 +219,31 @@ while True:
                         h_ditrack_4track.Fill(mass_34)
                         if (r.TMath.Abs(m_kshort - mass_34)):
                             dvPairs.append([track3, track4, "(3, 4)"])
-                    print(dvPairs, len(dvPairs))
-                    
-                    
-                    
+                    """
 
+                    # DV pair combination
+                    # Pair = [(1,2), (3,4)] or [(1,3), (2,4)] or [(1,4), (2,3)]
+                    diff12 = r.TMath.Abs(m_kshort - mass_12)
+                    diff13 = r.TMath.Abs(m_kshort - mass_13)
+                    diff14 = r.TMath.Abs(m_kshort - mass_14)
+                    diff23 = r.TMath.Abs(m_kshort - mass_23)
+                    diff24 = r.TMath.Abs(m_kshort - mass_24)
+                    diff34 = r.TMath.Abs(m_kshort - mass_34)
+                    charge12 = charge1 * charge2
+                    charge13 = charge1 * charge3
+                    charge14 = charge1 * charge4
+                    charge23 = charge2 * charge3
+                    charge24 = charge2 * charge4
+                    charge34 = charge3 * charge4
+                    
+                    if (diff12 < 0.05 and diff34 < 0.05 and (charge12 == -1 and charge34 == -1)):
+                        h_mv_4track.Fill((track1 + track2 + track3 + track4).M())
+                    if (diff13 < 0.05 and diff24 < 0.05 and (charge13 == -1 and charge24 == -1)):
+                        h_mv_4track.Fill((track1 + track2 + track3 + track4).M())
+                    if (diff14 < 0.05 and diff23 < 0.05 and (charge14 == -1 and charge23 == -1)):
+                        h_mv_4track.Fill((track1 + track2 + track3 + track4).M())
 
+                        
         outputFile.Write()
         outputFile.Close()
         nFile += 1
