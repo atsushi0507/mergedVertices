@@ -55,7 +55,7 @@ def ratioPlot(h_same, h_mixed, directory, outputName, label):
 
     c1.SetTicks(0,0)
     leg.Draw()
-    ATLASLabel(0.50, 0.85, label)
+    ATLASLabel(0.175, 0.945, label)
     c1.Update()
     c1.Print("{}/{}.pdf".format(directory, outputName))
 
@@ -99,6 +99,6 @@ def MassHists(c1, massHists, legs, directory, outputName, label, logy=True):
     for i in range(len(massHists)):
         massHists[i].Draw("hist same")
     leg.Draw()
-    ATLASLabel(0.35, 0.88, label)
+    ATLASLabel(0.175, 0.945, label)
     c1.Print("{}/{}.pdf".format(directory, outputName))
         

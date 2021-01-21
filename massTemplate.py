@@ -9,7 +9,7 @@ from AtlasLabel import *
 r.gROOT.SetBatch()
 SetAtlasStyle()
 
-label = "Work in Progress"
+label = "Internal"
 
 inputFile = r.TFile("run2_full_weighted.root", "READ")
 outputFile = r.TFile("mergedVertices_massTemplate.root", "RECREATE")

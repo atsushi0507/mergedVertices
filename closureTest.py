@@ -10,7 +10,7 @@ SetAtlasStyle()
 
 r.gROOT.SetBatch()
 
-label = "Work in Progress"
+label = "Internal"
 date = str(datetime.date.today())
 directory = "plots/" + date + "/" + "closure"
 if (not os.path.isdir(directory)):
@@ -76,9 +76,11 @@ def calc(h_same, histList, h_ratio):
         h_diff.Add(h_same[i], -1)
         h_predictMV.Add(h_samePredict, -1)
 
+        """
         print(histList[0][i].GetName())
         print(h_diff.Integral(1, bin1), h_diff.Integral(bin1, bin2))
         print(h_predictMV.Integral(1, bin1), h_predictMV.Integral(bin1, bin2))
+        """
 
         h_predictMVs.append(h_predictMV)
         h_samePredicts.append(h_samePredict)
@@ -115,8 +117,6 @@ def DrawHists(hists, legs, bin1, bin2, outputName):
 
 
 ### Main program start here ###
-# (2,2)-track DV
-## For test, to be delete
 c = r.TCanvas("c", "c", 800, 600)
 
 h_same4, h_mixed4 = getHists(inputFile, 4, bin)
@@ -133,8 +133,6 @@ for i in range(len(h_mixed4)):
     h_mixed6[i].Scale(sf6[i])
 
 ratios4 = getRatio(h_same4, h_mixed4)
-#ratios5 = getRatio(h_same5, h_mixed5)
-#ratios6 = getRatio(h_same6, h_mixed6)
 
 histList4 = getClonedHists(h_mixed4)
 histList5 = getClonedHists(h_mixed5)
@@ -150,9 +148,24 @@ outputNameList = ["", "_inside_BP", "_inside_IBL", "_PIX", "_inside_SCT"]
 for i in range(len(h_same4)):
     hists4 = [h_same4[i], h_mixed4[i], h_samePredicts4[i]]
     hists5 = [h_same5[i], h_mixed5[i], h_samePredicts5[i], h_diffs5[i], h_predictMVs5[i]]
-    #hists5 = [h_same5[i], h_mixed5[i], h_diffs5[i], h_predictMVs5[i]]
     hists6 = [h_same6[i], h_mixed6[i], h_samePredicts6[i], h_diffs6[i], h_predictMVs6[i]]
     DrawHists(hists4, legList, bin1, bin2, "sig4"+outputNameList[i])
     DrawHists(hists5, legList_full, bin1, bin2, "sig5"+outputNameList[i])
     DrawHists(hists6, legList_full, bin1, bin2, "sig6"+outputNameList[i])
-    
+
+### 2021.01.21, add new idea about samePredict
+ratio4 = ratios4[0]
+
+h_same5 = inputFile.Get("sig5_same")
+h_mixed5 = inputFile.Get("sig5_mixed")
+
+h_samePredicted5 = h_mixed5.Clone("samePredicted5")
+h_samePredicted5.Multiply(ratio4)
+
+h_mixed5.SetLineColor(r.kRed)
+h_samePredicted5.SetLineColor(r.kBlue)
+
+h_same5.Draw("hist")
+h_mixed5.Draw("same hist")
+h_samePredicted5.Draw("same hist")
+c.Print("{}/samePredicted5.pdf".format(directory))

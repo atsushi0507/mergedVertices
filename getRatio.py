@@ -22,7 +22,7 @@ directory = str(os.getcwd()) + "/plots/" + date + "/ratio"
 if (not os.path.isdir(directory)):
     os.makedirs(directory)
 
-label = "Work in Progress"
+label = "Internal"
 
 outputFile = r.TFile("ratio.root", "RECREATE")
 c = r.TCanvas("c", "c", 800, 600)

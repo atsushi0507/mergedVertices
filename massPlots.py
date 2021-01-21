@@ -9,7 +9,7 @@ from plotHelper import *
 r.gROOT.SetBatch()
 SetAtlasStyle()
 
-label = "Work in Progress"
+label = "Internal"
 
 c1 = r.TCanvas("c1", "c1", 800, 600)
 inputFile = r.TFile("run2_full_weighted.root", "READ")

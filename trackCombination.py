@@ -80,17 +80,22 @@ while True:
                     continue
                 if (not tree.DV_passMaterialVeto_strict[idv]):
                     continue
-                """
-                """
+                
+                
                 if (tree.DV_nTracks[idv] >= 5. and tree.DV_m[idv] > 10.):
                     continue
                 if (tree.DV_nTracks[idv] == 4 and tree.DV_m[idv] > 20.):
                     continue
                 """
+                
                 vertex.append([tree.DV_m[idv], tree.DV_nTracks[idv], tree.DV_rxy[idv], tree.DV_index[idv]])
                 track = []
 
                 for itrack in range(len(tree.dvtrack_ptWrtDV)):
+                    if ((tree.DV_index[idv] != tree.dvtrack_DVIndex[itrack])):
+                        continue
+                    if (tree.dvtrack_failedExtrapolation[itrack] == 1):
+                        continue
                     track.append([tree.dvtrack_ptWrtDV[itrack],
                                   tree.dvtrack_etaWrtDV[itrack],
                                   tree.dvtrack_phiWrtDV[itrack],
@@ -99,7 +104,6 @@ while True:
                                   tree.dvtrack_DVIndex[itrack],
                                   tree.dvtrack_failedExtrapolation[itrack],
                                   r.TMath.Abs(tree.dvtrack_d0[itrack]/tree.dvtrack_errd0[itrack]),
-                                  tree.dvtrack_ptWrtDV[itrack],
                                   tree.dvtrack_charge[itrack]])
                 tracks.append(track)
             if (len(vertex) == 0):
@@ -122,7 +126,10 @@ while True:
             dvtracks = events[iEvent][1]
             for idv in range(len(dv)):
                 m_dv = dv[idv][0]
-                nTracks = dv[idv][1]
+                #nTracks = dv[idv][1]
+                nTracks = len(dvtracks[idv])
+                if (nTracks < dv[idv][1]):
+                    print(nTracks, dv[idv][1])
                 dv_tracks = r.TLorentzVector()
                 for itrack in dvtracks[idv]:
                     track = r.TLorentzVector()
@@ -132,15 +139,22 @@ while True:
                                        itrack[3])
                     dv_tracks += track
                 if (nTracks == 2):
-                    h_2track_mass.Fill(m_dv)
+                    #h_2track_mass.Fill(m_dv)
+                    track1 = r.TLorentzVector()
+                    track2 = r.TLorentzVector()
+                    track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
+                    track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
+                    h_2track_mass.Fill((track1+track2).M())
                 if (nTracks == 3):
-                    h_3track_mass.Fill(m_dv)
+                    #h_3track_mass.Fill(m_dv)
                     track1 = r.TLorentzVector()
                     track2 = r.TLorentzVector()
                     track3 = r.TLorentzVector()
                     track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
                     track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
                     track3.SetPtEtaPhiM(dvtracks[idv][2][0], dvtracks[idv][2][1], dvtracks[idv][2][2], dvtracks[idv][2][3])
+                    h_3track_mass.Fill((track1+track2+track3).M())
+                    
                     mass_12 = (track1 + track2).M()
                     mass_13 = (track1 + track3).M()
                     mass_23 = (track2 + track3).M()
@@ -161,7 +175,7 @@ while True:
                         h_ditrack_3track.Fill(mass_23)
                         
                 if (nTracks == 4):
-                    h_4track_mass.Fill(m_dv)
+                    #h_4track_mass.Fill(m_dv)
 
                     track1 = r.TLorentzVector()
                     track2 = r.TLorentzVector()
@@ -172,6 +186,8 @@ while True:
                     track3.SetPtEtaPhiM(dvtracks[idv][2][0], dvtracks[idv][2][1], dvtracks[idv][2][2], dvtracks[idv][2][3])
                     track4.SetPtEtaPhiM(dvtracks[idv][3][0], dvtracks[idv][3][1], dvtracks[idv][3][2], dvtracks[idv][3][3])
 
+                    h_4track_mass.Fill((track1+track2+track3+track4).M())
+
                     mass_12 = (track1 + track2).M()
                     mass_13 = (track1 + track3).M()
                     mass_14 = (track1 + track4).M()
@@ -179,47 +195,10 @@ while True:
                     mass_24 = (track2 + track4).M()
                     mass_34 = (track3 + track4).M()
 
-                    charge1 = dvtracks[idv][0][9]
-                    charge2 = dvtracks[idv][1][9]
-                    charge3 = dvtracks[idv][2][9]
-                    charge4 = dvtracks[idv][3][9]
-
-                    """
-                    pass_1 = trackCleaning(dv[idv], dvtracks[idv][0])
-                    pass_2 = trackCleaning(dv[idv], dvtracks[idv][1])
-                    pass_3 = trackCleaning(dv[idv], dvtracks[idv][2])
-                    pass_4 = trackCleaning(dv[idv], dvtracks[idv][3])
-                    
-                    isAsso_1 = dvtracks[idv][0][4]
-                    isAsso_2 = dvtracks[idv][1][4]
-                    isAsso_3 = dvtracks[idv][2][4]
-                    isAsso_4 = dvtracks[idv][3][4]
-                    dvPairs = []
-                    if ((not isAsso_1) and (not isAsso_2) and (pass_3) and (pass_4)):
-                        h_ditrack_4track.Fill(mass_12)
-                        if (r.TMath.Abs(m_kshort - mass_12)):
-                            dvPairs.append([track1, track2, "(1, 2)"])
-                    if ((not isAsso_1) and (not isAsso_3) and (pass_2) and (pass_4)):
-                        h_ditrack_4track.Fill(mass_13)
-                        if (r.TMath.Abs(m_kshort - mass_13)):
-                            dvPairs.append([track1, track3, "(1, 3)"])
-                    if ((not isAsso_1) and (not isAsso_4) and (pass_2) and (pass_3)):
-                        h_ditrack_4track.Fill(mass_14)
-                        if (r.TMath.Abs(m_kshort - mass_14)):
-                            dvPairs.append([track1, track4, "(1, 4)"])
-                    if ((not isAsso_2) and (not isAsso_3) and (pass_1) and (pass_4)):
-                        h_ditrack_4track.Fill(mass_23)
-                        if (r.TMath.Abs(m_kshort - mass_23)):
-                            dvPairs.append([track2, track3, "(2, 3)"])
-                    if ((not isAsso_2) and (not isAsso_4) and (pass_1) and (pass_3)):
-                        h_ditrack_4track.Fill(mass_24)
-                        if (r.TMath.Abs(m_kshort - mass_24)):
-                            dvPairs.append([track2, track4, "(2, 4)"])
-                    if ((not isAsso_3) and (not isAsso_4) and (pass_1) and (pass_2)):
-                        h_ditrack_4track.Fill(mass_34)
-                        if (r.TMath.Abs(m_kshort - mass_34)):
-                            dvPairs.append([track3, track4, "(3, 4)"])
-                    """
+                    charge1 = dvtracks[idv][0][8]
+                    charge2 = dvtracks[idv][1][8]
+                    charge3 = dvtracks[idv][2][8]
+                    charge4 = dvtracks[idv][3][8]
 
                     # DV pair combination
                     # Pair = [(1,2), (3,4)] or [(1,3), (2,4)] or [(1,4), (2,3)]
