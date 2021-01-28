@@ -12,7 +12,6 @@ SetAtlasStyle()
 label = "Internal"
 
 inputFile = r.TFile("run2_full_weighted.root", "READ")
-outputFile = r.TFile("mergedVertices_massTemplate.root", "RECREATE")
 
 date = str(datetime.date.today())
 directory = os.getcwd() + "/plots/" + date + "/mergedMass"
@@ -21,69 +20,33 @@ if (not os.path.isdir(directory)):
 
 c1 = r.TCanvas("c1", "c1", 800, 600)
 
-DV_m_4track = inputFile.Get("DV_m_4track").Rebin(10)
-mergedMass4 = inputFile.Get("mergedMass4_mixed").Rebin(10)
-mergedMass4_sigWeight = inputFile.Get("mergedMass4_sigWeight").Rebin(10)
+colors = [r.kBlack, r.kRed, r.kBlue, r.kGreen+2, r.kCyan]
 
-bin1 = DV_m_4track.FindBin(100)
-DV_m_4track.GetXaxis().SetRange(1, bin1)
+rebin = 20
 
-### Color setting
-DV_m_4track.SetLineColor(r.kBlack)
-mergedMass4.SetLineColor(r.kRed)
-mergedMass4.SetMarkerColor(r.kRed)
-mergedMass4_sigWeight.SetLineColor(r.kBlue)
-mergedMass4_sigWeight.SetMarkerColor(r.kBlue)
+mv4_noCut = inputFile.Get("mergedMass4_mixed").Rebin(rebin)
+mv4_sigCut = inputFile.Get("mergedMass4_sig100Cut").Rebin(rebin)
+mv4_sigWeight = inputFile.Get("mergedMass4_sigWeight").Rebin(rebin)
+mv4_dRWeight = inputFile.Get("mergedMass4_dRWeight").Rebin(rebin)
+mv4_weight = inputFile.Get("mergedMass4_weight").Rebin(rebin)
 
-sf = DV_m_4track.Integral() / mergedMass4.Integral()
-
-leg = r.TLegend(0.65, 0.65, 0.88, 0.85)
-leg.SetBorderSize(0)
-leg.SetFillStyle(0)
-leg.SetTextSize(0.03)
+mv4 = [mv4_noCut, mv4_sigCut, mv4_sigWeight, mv4_dRWeight, mv4_weight]
+legs = ["No cut and weight applied", "S < 100", "Significance weight", "dR weight", "Weight = sig #times dR"]
 
 r.gPad.SetLogy()
-
-mergedMass4.Scale(sf)
-mergedMass4_sigWeight.Scale(sf)
-DV_m_4track.Draw("e")
-mergedMass4.Draw("same hist e0")
-mergedMass4_sigWeight.Draw("same hist e0")
-leg.AddEntry(DV_m_4track, "Data", "l")
-leg.AddEntry(mergedMass4, "100% merged", "l")
-leg.AddEntry(mergedMass4_sigWeight, "apply merge rate", "l")
-leg.Draw()
-ATLASLabel(0.4, 0.88, label)
-c1.Print("{}/{}.pdf".format(directory, "mergedMass4_logy"))
-
-mergedMass4_sigWeight.Draw("hist e0")
-ATLASLabel(0.4, 0.88, label)
-c1.Print("{}/{}.pdf".format(directory, "mergedMass4_sigWeight_logy"))
-mergedMass4_sigWeight.Write()
-
-r.gPad.SetLogy(0)
-DV_m_4track.Draw("p")
-mergedMass4.Draw("same hist e0")
-mergedMass4_sigWeight.Draw("same hist e0")
-leg.Draw()
-ATLASLabel(0.4, 0.88, label)
-c1.Print("{}/{}.pdf".format(directory, "mergedMass4"))
-
-mergedMass4_sigWeight.Draw("hist e0")
-ATLASLabel(0.4, 0.88, label)
-c1.Print("{}/{}.pdf".format(directory, "mergedMass4_sigWeight"))
-
-bin10 = mergedMass4_sigWeight.FindBin(10)
-binMax = mergedMass4_sigWeight.GetNbinsX()
-print(mergedMass4_sigWeight.Integral(bin10, binMax))
-
-r.gPad.SetLogy()
-
-regions = ["inside_BP", "inside_IBL", "PIX", "inside_SCT"]
-DV_m_region = []
-mergedMass4_region = []
-mergedMass4_sigWeight_region = []
-for region in regions:
-    DV_m_region.append(inputFile.Get("DV_m_4track_{}".format(region)).Rebin(10))
-    mergedMass4_region.append(inputFile.Get("mergedMass4_{}".format(region)).Rebin(10))
-    mergedMass4_sigWeight_region.append(inputFile.Get("mergedMass4_sigWeight_{}".format(region)).Rebin(10))
+l1 = r.TLegend(0.60, 0.65, 0.88, 0.88)
+l1.SetFillStyle(0)
+l1.SetBorderSize(0)
+l1.SetTextSize(0.03)
+l1.SetTextFont(42)
+for i in range(len(mv4)):
+    mv4[i].SetLineColor(colors[i])
+    mv4[i].SetMarkerColor(colors[i])
+    l1.AddEntry(mv4[i], legs[i], "l")
+    if i == 0:
+        mv4[i].DrawNormalized("hist")
+    else:
+        mv4[i].DrawNormalized("hist same")
+    l1.Draw()
+    ATLASLabel(0.175, 0.955, label)
+c1.Print("{}/mv4.pdf".format(directory))

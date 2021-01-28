@@ -3,7 +3,6 @@ import ROOT as r
 import random
 import argparse
 from utils import *
-import itertools
 
 p = argparse.ArgumentParser()
 p.add_argument("-i", "--inputFile", help="Specify input file list", default="inputList.txt")
@@ -73,20 +72,22 @@ while True:
                     continue
                 if (not tree.DV_passDistCut[idv]):
                     continue
+                """
                 if (not tree.DV_passChiSqCut[idv]):
                     continue
                 """
+                if (tree.DV_chisqPerDoF[idv] > 50.):
+                    continue
+                
                 if (not tree.DV_passMaterialVeto[idv]):
                     continue
                 if (not tree.DV_passMaterialVeto_strict[idv]):
                     continue
                 
-                
                 if (tree.DV_nTracks[idv] >= 5. and tree.DV_m[idv] > 10.):
                     continue
                 if (tree.DV_nTracks[idv] == 4 and tree.DV_m[idv] > 20.):
                     continue
-                """
                 
                 vertex.append([tree.DV_m[idv], tree.DV_nTracks[idv], tree.DV_rxy[idv], tree.DV_index[idv]])
                 track = []
@@ -95,6 +96,19 @@ while True:
                     if ((tree.DV_index[idv] != tree.dvtrack_DVIndex[itrack])):
                         continue
                     if (tree.dvtrack_failedExtrapolation[itrack] == 1):
+                        continue
+                    if (tree.dvtrack_isAssociated[itrack]):
+                        if (tree.dvtrack_ptWrtDV[itrack] < 2.):
+                            continue
+                        if ( (tree.DV_rxy[idv] > 85.5) and (tree.dvtrack_ptWrtDV[itrack] < 3.) ):
+                            continue
+                    # d0-significance
+                    d0sig = r.TMath.Abs(tree.dvtrack_d0[itrack] / tree.dvtrack_errd0[itrack])
+                    if ( (tree.DV_rxy[idv] < 23.5) and (d0sig < 15.) ):
+                        continue
+                    if ( (tree.DV_rxy[idv] < 119.3) and (d0sig < 10.) ):
+                        continue
+                    if ( (tree.DV_rxy[idv] > 119.3) and (d0sig < 10.) and tree.dvtrack_isAssociated[itrack] == 0):
                         continue
                     track.append([tree.dvtrack_ptWrtDV[itrack],
                                   tree.dvtrack_etaWrtDV[itrack],
@@ -115,8 +129,8 @@ while True:
         h_3track_mass = r.TH1D("3track_mass", ";m_{DV} [GeV]", 1000, 0., 5.)
         h_4track_mass = r.TH1D("4track_mass", ";m_{DV} [GeV]", 1000, 0., 5.)
 
-        h_ditrack_3track = r.TH1D("ditrack_3track", "m_{DV} [GeV]", 250, 0., 1.)
-        h_ditrack_4track = r.TH1D("ditrack_4track", ";m_{DV} [GeV]", 250, 0., 1.)
+        h_ditrack_3track = r.TH1D("ditrack_3track", ";m_{DV} [GeV]", 500, 0., 1.)
+        h_ditrack_4track = r.TH1D("ditrack_4track", ";m_{DV} [GeV]", 500, 0., 1.)
 
         h_mv_4track = r.TH1D("mv_4track", "m_{DV} [GeV]", 1000, 0., 100.)
 
@@ -128,31 +142,35 @@ while True:
                 m_dv = dv[idv][0]
                 #nTracks = dv[idv][1]
                 nTracks = len(dvtracks[idv])
-                if (nTracks < dv[idv][1]):
+                if (nTracks != dv[idv][1]):
                     print(nTracks, dv[idv][1])
                 dv_tracks = r.TLorentzVector()
-                for itrack in dvtracks[idv]:
-                    track = r.TLorentzVector()
+                #for itrack in dvtracks[idv]:
+                """
+                track = r.TLorentzVector()
                     track.SetPtEtaPhiM(itrack[0],
                                        itrack[1],
                                        itrack[2],
                                        itrack[3])
                     dv_tracks += track
+                """
                 if (nTracks == 2):
-                    #h_2track_mass.Fill(m_dv)
+                    
                     track1 = r.TLorentzVector()
                     track2 = r.TLorentzVector()
                     track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
                     track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
                     h_2track_mass.Fill((track1+track2).M())
+                    
                 if (nTracks == 3):
-                    #h_3track_mass.Fill(m_dv)
                     track1 = r.TLorentzVector()
                     track2 = r.TLorentzVector()
                     track3 = r.TLorentzVector()
+                    
                     track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
                     track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
                     track3.SetPtEtaPhiM(dvtracks[idv][2][0], dvtracks[idv][2][1], dvtracks[idv][2][2], dvtracks[idv][2][3])
+                    
                     h_3track_mass.Fill((track1+track2+track3).M())
                     
                     mass_12 = (track1 + track2).M()
