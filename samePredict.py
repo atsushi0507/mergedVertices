@@ -1,7 +1,8 @@
 import ROOT as r
 import os, datetime
 import sys
-sys.path.append("/Users/amizukam/DVJets/atlasstyle")
+#sys.path.append("/Users/amizukam/DVJets/atlasstyle")
+sys.path.append("/Users/atsushi/mvstudy_dv")
 from AtlasStyle import *
 from AtlasLabel import *
 SetAtlasStyle()
