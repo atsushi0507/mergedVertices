@@ -33,11 +33,13 @@ while True:
             os.makedirs(outputDir)
         name = line.split("/")[-1] # output_{fileNumber}.root
         number = name.split("_")[1].split(".")[0]
-        outputFileName = "output_{}.root".format(number)
-        outputFile = r.TFile(outputDir + "/" + outputFileName, "RECREATE")
         if (doWeight):
             outputFileName = "output_{}_Reweight.root".format(number)
-            outputFile = r.TFile("Reweighted/" + outputFileName, "RECREATE")
+            #outputFile = r.TFile("Reweighted/" + outputFileName, "RECREATE")
+            outputFile = r.TFile(outputDir + "/" + outputFileName, "RECREATE")
+        else:
+            outputFileName = "output_{}.root".format(number)
+            outputFile = r.TFile(outputDir + "/" + outputFileName, "RECREATE")
 
         eventID = 0
         events = getEvents(t, eventID, doUnblind)
@@ -189,36 +191,6 @@ while True:
         h_mergedMass5_weight.Sumw2()
         h_mergedMass6_weight.Sumw2()
         
-        # For debugging
-        """
-        for iEvent in range(len(events)):
-            eventID = events[iEvent][0]
-            dv = events[iEvent][1]
-            dvtracks = events[iEvent][2]
-            for idv in range(len(dv)):
-                m_dv = dv[idv][3]
-                dv_tracks, nTracks, nTracksSel = getDVtracks(dvtracks[idv])
-                m_tracks = dv_tracks.M()
-                diff = r.TMath.Abs(m_dv - m_tracks)
-                counter += 1
-
-                if (dv[idv][5] != nTracks):
-                    print("Not matched the number of tracks, reco: {}, and counted: {}".format(dv[idv][5], nTracks))
-                if (dv[idv][6] != nTracksSel):
-                    print("Not matched the number of tracks, reco: {}, and counted: {}".format(dv[idv][6], nTracksSel))
-                if (diff > m_dv * 0.001):
-                    print("event: {} Different mass, m_DV: {}, and m_tracks: {}".format(eventID, m_dv, m_tracks))
-                    print(dvtracks[idv])
-                    region = getRegion(dv[idv][4])
-                    print(region, regions[region])
-                    missReco += 1
-
-                if (nTracks == 4 and m_dv > 10.):
-                    print(m_dv)
-                    print(dvtracks[idv])
-
-        """
-                
         print ("Looping for same-event")
         for iEvent in range(len(events)):
             dvs = events[iEvent][1]
@@ -349,28 +321,52 @@ while True:
                         if region1 == -1:
                             continue
                         ratioFile = r.TFile("ratio.root", "READ")
-                        sigRatio = ratioFile.Get("sig4_ratio")
-                        sigRatio_region = ratioFile.Get("sig_4_{}_ratio".format(regions[region1]))
+                        sig4Ratio = ratioFile.Get("sig4_ratio")
+                        sig4Ratio_region = ratioFile.Get("sig_4_{}_ratio".format(regions[region1]))
+                        sig5Ratio = ratioFile.Get("sig5_ratio")
+                        sig5Ratio_region = ratioFile.Get("sig_5_{}_ratio".format(regions[region1]))
+                        sig6Ratio = ratioFile.Get("sig6_ratio")
+                        sig6Ratio_region = ratioFile.Get("sig_6_{}_ratio".format(regions[region1]))
+                        
                         dRRatio = ratioFile.Get("dR_jetDV2_ratio")
                         dRRatio_region = ratioFile.Get("dR_jetDV2_{}_ratio".format(regions[region1]))
-                        sigBin = h_sig_same.FindBin(sig)
+                        sigBin = h_sig_mixed.FindBin(sig)
                         #if (sigBin < bin1):
                         if (sig < 100.):
-                            sigWeight = 1 - sigRatio.GetBinContent(sigBin)
-                            sigWeight_region = 1 - sigRatio_region.GetBinContent(sigBin)
-                            if (sigWeight < 0):
-                                sigWeight = 0
-                            if (sigWeight_region < 0):
-                                sigWeight_region = 0
+                            sig4Weight = 1 - sig4Ratio.GetBinContent(sigBin)
+                            sig4Weight_region = 1 - sig4Ratio_region.GetBinContent(sigBin)
+                            sig5Weight = 1 - sig5Ratio.GetBinContent(sigBin)
+                            sig5Weight_region = 1 - sig6Ratio_region.GetBinContent(sigBin)
+                            sig6Weight = 1 - sig6Ratio.GetBinContent(sigBin)
+                            sig6Weight_region = 1 - sig6Ratio_region.GetBinContent(sigBin)
+                            if (sig4Weight < 0):
+                                sig4Weight = 0
+                            if (sig5Weight < 0):
+                                sig5Weight = 0
+                            if (sig6Weight < 0):
+                                sig6Weight = 0
+                            if (sig4Weight_region < 0):
+                                sig4Weight_region = 0
+                            if (sig5Weight_region < 0):
+                                sig5Weight_region = 0
+                            if (sig6Weight_region < 0):
+                                sig6Weight_region = 0
                         else:
-                            sigWeight = 0
-                            sigWeight_region = 0
+                            sig4Weight = 0
+                            sig4Weight_region = 0
+                            sig5Weight = 0
+                            sig5Weight_region = 0
+                            sig6Weight = 0
+                            sig6Weight_region = 0
                         drBin = h_dR_jetDV2_mixed.FindBin(dR_jetDV2)
                         drWeight = dRRatio.GetBinContent(drBin)
                         drWeight_region = dRRatio_region.GetBinContent(drBin)
-                        weight = sigWeight * drWeight
-                        weight_region = sigWeight_region * drWeight_region
-                                
+                        weight4 = sig4Weight * drWeight
+                        weight4_region = sig4Weight_region * drWeight_region
+                        weight5 = sig5Weight * drWeight
+                        weight5_region = sig5Weight_region * drWeight_region
+                        weight6 = sig6Weight * drWeight
+                        weight6_region = sig6Weight_region * drWeight_region
 
                     if (nTracks == 4):
                         h_sig4_mixed.Fill(sig)
@@ -379,66 +375,66 @@ while True:
                         h_mergedMass4_region[region1].Fill(mergedMass)
 
                         if (doWeight):
-                            h_mergedMass4_sigWeight_noSigCut.Fill(mergedMass, sigWeight)
-                            h_mergedMass4_sigWeight_noSigCut_region[region1].Fill(mergedMass, sigWeight_region)
+                            h_mergedMass4_sigWeight_noSigCut.Fill(mergedMass, sig4Weight)
+                            h_mergedMass4_sigWeight_noSigCut_region[region1].Fill(mergedMass, sig4Weight_region)
                             h_mergedMass4_dRWeight_noSigCut.Fill(mergedMass, drWeight)
                             h_mergedMass4_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
-                            h_mergedMass4_weight_noSigCut.Fill(mergedMass, weight)
-                            h_mergedMass4_weight_noSigCut_region[region1].Fill(mergedMass, weight_region)
+                            h_mergedMass4_weight_noSigCut.Fill(mergedMass, weight4)
+                            h_mergedMass4_weight_noSigCut_region[region1].Fill(mergedMass, weight4_region)
                         if (sig < 100.):
                             h_mergedMass4_sig100Cut.Fill(mergedMass)
                             h_mergedMass4_sig100Cut_region[region1].Fill(mergedMass)
                             if (doWeight):
-                                h_mergedMass4_sigWeight.Fill(mergedMass, sigWeight)
+                                h_mergedMass4_sigWeight.Fill(mergedMass, sig4Weight)
                                 h_mergedMass4_dRWeight.Fill(mergedMass, drWeight)
-                                h_mergedMass4_weight.Fill(mergedMass, weight)
-                                h_mergedMass4_sigWeight_region[region1].Fill(mergedMass, sigWeight_region)
+                                h_mergedMass4_weight.Fill(mergedMass, weight4)
+                                h_mergedMass4_sigWeight_region[region1].Fill(mergedMass, sig4Weight_region)
                                 h_mergedMass4_dRWeight_region[region1].Fill(mergedMass, drWeight_region)
-                                h_mergedMass4_weight_region[region1].Fill(mergedMass, weight_region)
+                                h_mergedMass4_weight_region[region1].Fill(mergedMass, weight4_region)
                     if (nTracks == 5):
                         h_sig5_mixed.Fill(sig)
                         h_mergedMass5_mixed.Fill(mergedMass)
                         h_sig5_mixed_region[region1].Fill(sig)
                         h_mergedMass5_region[region1].Fill(mergedMass)
                         if (doWeight):
-                            h_mergedMass5_sigWeight_noSigCut.Fill(mergedMass, sigWeight)
-                            h_mergedMass5_sigWeight_noSigCut_region[region1].Fill(mergedMass, sigWeight_region)
+                            h_mergedMass5_sigWeight_noSigCut.Fill(mergedMass, sig5Weight)
+                            h_mergedMass5_sigWeight_noSigCut_region[region1].Fill(mergedMass, sig5Weight_region)
                             h_mergedMass5_dRWeight_noSigCut.Fill(mergedMass, drWeight)
                             h_mergedMass5_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
-                            h_mergedMass5_weight_noSigCut.Fill(mergedMass, weight)
-                            h_mergedMass5_weight_noSigCut_region[region1].Fill(mergedMass, weight_region)
+                            h_mergedMass5_weight_noSigCut.Fill(mergedMass, weight5)
+                            h_mergedMass5_weight_noSigCut_region[region1].Fill(mergedMass, weight5_region)
                         if (sig < 100.):
                             h_mergedMass5_sig100Cut.Fill(mergedMass)
                             h_mergedMass5_sig100Cut_region[region1].Fill(mergedMass)
                             if (doWeight):
-                                h_mergedMass5_sigWeight.Fill(mergedMass, sigWeight)
+                                h_mergedMass5_sigWeight.Fill(mergedMass, sig5Weight)
                                 h_mergedMass5_dRWeight.Fill(mergedMass, drWeight)
-                                h_mergedMass5_weight.Fill(mergedMass, weight)
-                                h_mergedMass5_sigWeight_region[region1].Fill(mergedMass, sigWeight_region)
+                                h_mergedMass5_weight.Fill(mergedMass, weight5)
+                                h_mergedMass5_sigWeight_region[region1].Fill(mergedMass, sig5Weight_region)
                                 h_mergedMass5_dRWeight_region[region1].Fill(mergedMass, drWeight_region)
-                                h_mergedMass5_weight_region[region1].Fill(mergedMass, weight_region)
+                                h_mergedMass5_weight_region[region1].Fill(mergedMass, weight5_region)
                     if (nTracks == 6):
                         h_sig6_mixed.Fill(sig)
                         h_mergedMass6_mixed.Fill(mergedMass)
                         h_sig6_mixed_region[region1].Fill(sig)
                         h_mergedMass6_region[region1].Fill(mergedMass)
                         if (doWeight):
-                            h_mergedMass6_sigWeight_noSigCut.Fill(mergedMass, sigWeight)
-                            h_mergedMass6_sigWeight_noSigCut_region[region1].Fill(mergedMass, sigWeight_region)
+                            h_mergedMass6_sigWeight_noSigCut.Fill(mergedMass, sig6Weight)
+                            h_mergedMass6_sigWeight_noSigCut_region[region1].Fill(mergedMass, sig6Weight_region)
                             h_mergedMass6_dRWeight_noSigCut.Fill(mergedMass, drWeight)
                             h_mergedMass6_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
-                            h_mergedMass6_weight_noSigCut.Fill(mergedMass, weight)
-                            h_mergedMass6_weight_noSigCut_region[region1].Fill(mergedMass, weight_region)
+                            h_mergedMass6_weight_noSigCut.Fill(mergedMass, weight6)
+                            h_mergedMass6_weight_noSigCut_region[region1].Fill(mergedMass, weight6_region)
                         if (sig < 100.):
                             h_mergedMass6_sig100Cut.Fill(mergedMass)
                             h_mergedMass6_sig100Cut_region[region1].Fill(mergedMass)
                             if (doWeight):
-                                h_mergedMass6_sigWeight.Fill(mergedMass, sigWeight)
+                                h_mergedMass6_sigWeight.Fill(mergedMass, sig6Weight)
                                 h_mergedMass6_dRWeight.Fill(mergedMass, drWeight)
-                                h_mergedMass6_weight.Fill(mergedMass, weight)
-                                h_mergedMass6_sigWeight_region[region1].Fill(mergedMass, sigWeight_region)
+                                h_mergedMass6_weight.Fill(mergedMass, weight6)
+                                h_mergedMass6_sigWeight_region[region1].Fill(mergedMass, sig6Weight_region)
                                 h_mergedMass6_dRWeight_region[region1].Fill(mergedMass, drWeight_region)
-                                h_mergedMass6_weight_region[region1].Fill(mergedMass, weight_region)
+                                h_mergedMass6_weight_region[region1].Fill(mergedMass, weight6_region)
                             
         print("Looping for DV mass calculation")
         for iEvent in range(len(events)):
