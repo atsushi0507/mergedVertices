@@ -6,306 +6,725 @@ from utils import *
 
 p = argparse.ArgumentParser()
 p.add_argument("-i", "--inputFile", help="Specify input file list", default="inputList.txt")
-p.add_argument("-o", "--outputDir", help="Specify output directory", default="kshort-method")
+p.add_argument("-o", "--outputDir", help="Specify output directory", default="output")
+p.add_argument("-u", "--doUnblind", help="If this flag is used, the signal region will be opened", action="store_true")
+p.add_argument("-w", "--doWeight", help="If this flag is used, merged mass weighting is applied", action="store_true")
+p.add_argument("-t", "--trackMass", help="Choose which mass to use for track: pi, ks, both", default="pi")
 
 args = p.parse_args()
 
 inputFile = args.inputFile
-
-m_pion = 139.57 * 0.001
-m_kshort = 497.11 * 0.001
+doUnblind = args.doUnblind
+doWeight = args.doWeight
+trackMass = args.trackMass
 
 regions = {0 : "inside_BP",
            1 : "inside_IBL",
            2 : "PIX",
            3 : "inside_SCT"}
 
-f = open(inputFile, "r")
-nFile = 1
+m_pion = 139.57 * 0.001 # GeV
+m_kshort = 497.61 * 0.001 # GeV
+m_kaon = 493.68 * 0.001 # GeV
+m_proton = 938.27 * 0.001 # GeV
 
-def trackCleaning(dv, track):
-    # DV properties
-    DV_rxy = dv[2]
-    DV_index = dv[4]
-    # dvtrack properties
-    dvtrack_ptWrtDV = track[0]
-    dvtrack_etaWrtDV = track[1]
-    dvtrack_phiWrtDV = track[2]
-    dvtrack_m = track[3] # pion mass
-    dvtrack_isAssociated = track[4]
-    dvtrack_DVIndex = track[5]
-    dvtrack_failedExtrapolation = track[6]
-    d0sig = track[7]    
-    
-    passCleaning = True
-    # Check DV_index and dvtrack_DVIndex
-    if (DV_index != dvtrack_DVIndex):
-        passCleaning = False
-    # Check dvtrack_failedExtapolation
-    if (dvtrack_failedExtrapolation == 1):
-        passCleaning = False
-    # Attached track pT cut
-    if (dvtrack_isAssociated):
-        if (dvtrack_ptWrtDV < 2.):
-            passCleaning = False
-        if (DV_rxy > 85.5 and dvtrack_ptWrtDV < 3.):
-            passCleaning = False
-    # d0-significance cut
-    if ((DV_rxy < 23.5) and d0sig < 15.):
-        passCleaning = False
-    if ((DV_rxy < 119.3) and d0sig < 10.):
-        passCleaning = False
-    if ((DV_rxy > 119.3) and d0sig < 10. and dvtrack_isAssociated == 0):
-        passCleaning = False
-    return passCleaning
-    
+mean = 4.98169e-01
+sigma = 9.01994e-03
+
+f = open(inputFile, "r")
 while True:
     line = f.readline().strip()
     if line:
         print(line)
         inFile = r.TFile(line, "READ")
-        tree = inFile.Get("trees_SRDV_")
+        t = inFile.Get("trees_SRDV_")
+        if t == None:
+            continue
         outputDir = args.outputDir
         if (not os.path.isdir(outputDir)):
             os.makedirs(outputDir)
         name = line.split("/")[-1] # output_{fileNumber}.root
-        # File name: group.phys-susy.00284213.r9264_r10573_p3578_p4296.23081787._001321.trees.root
-        #number = name.split("_")[1].split(".")[0]
-        outputFileName = name.replace("group", "output")
-        outputFile = r.TFile(outputDir + "/" + outputFileName, "RECREATE")
+        name = name.replace("group", "output")
+        if (doWeight):
+            outputFileName = "Reweight_" + name
+            outputFile = r.TFile(outputDir + "/" + outputFileName, "RECREATE")
+        else:
+            outputFileName = name
+            outputFile = r.TFile(outputDir + "/" + outputFileName, "RECREATE")
+
+        eventID = 0
+        #events = getEvents(t, eventID, doUnblind)
+
+        ### Histograms
+        # Significance (inclusive region)
+        h_sig_same = r.TH1D("significance_same", ";Significance", 200, 0., 1000.)
+        h_sig_mixed = r.TH1D("significance_mixed", ";Significance", 200, 0., 1000.)
+        h_sig4_same = r.TH1D("sig4_same", ";Significance", 200, 0., 1000.)
+        h_sig4_mixed = r.TH1D("sig4_mixed", ";Significance", 200, 0., 1000.)
+        h_sig5_same = r.TH1D("sig5_same", ";Significance", 200, 0., 1000.)
+        h_sig5_mixed = r.TH1D("sig5_mixed", ";Significance", 200, 0., 1000.)
+        h_sig6_same = r.TH1D("sig6_same", ";Significance", 200, 0., 1000.)
+        h_sig6_mixed = r.TH1D("sig6_mixed", ";Significance", 200, 0., 1000.)
+        h_distance_same = r.TH1D("distance_same", ";r_{3D} [mm]", 300, 0., 300.)
+        h_distance_mixed = r.TH1D("distance_mixed", ";r_{3D} [mm]", 300, 0., 300.)
+        # region separated
+        h_sig4_same_region = [r.TH1D("sig_4_same_"+regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_sig4_mixed_region = [r.TH1D("sig_4_mixed_"+regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_sig5_same_region = [r.TH1D("sig_5_same_"+regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_sig5_mixed_region = [r.TH1D("sig_5_mixed_"+regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_sig6_same_region = [r.TH1D("sig_6_same_"+regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_sig6_mixed_region = [r.TH1D("sig_6_mixed_"+regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_distance_same_region = [r.TH1D("distance_same_"+regions[i], ";r_{3D} [mm]", 300, 0., 300.) for i in regions]
+        h_distance_mixed_region = [r.TH1D("distance_mixed_"+regions[i], ";r_{3D} [mm]", 300, 0., 300.) for i in regions]
+
+        # Merged mass
+        h_mergedMass4_same = r.TH1D("mergedMass4_same", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_same = r.TH1D("mergedMass5_same", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_same = r.TH1D("mergedMass6_same", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_mixed = r.TH1D("mergedMass4_mixed", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_mixed = r.TH1D("mergedMass5_mixed", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_mixed = r.TH1D("mergedMass6_mixed", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sig100Cut = r.TH1D("mergedMass4_sig100Cut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_sig100Cut = r.TH1D("mergedMass5_sig100Cut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_sig100Cut = r.TH1D("mergedMass6_sig100Cut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_region = [r.TH1D("mergedMass4_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_region = [r.TH1D("mergedMass5_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_region = [r.TH1D("mergedMass6_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_sig100Cut_region = [r.TH1D("mergedMass4_sig100Cut_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_sig100Cut_region = [r.TH1D("mergedMass5_sig100Cut_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_sig100Cut_region = [r.TH1D("mergedMass6_sig100Cut_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        # apply weight
+        h_mergedMass4_sigWeight = r.TH1D("mergedMass4_sigWeight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_sigWeight = r.TH1D("mergedMass5_sigWeight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_sigWeight = r.TH1D("mergedMass6_sigWeight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_dRWeight = r.TH1D("mergedMass4_dRWeight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_dRWeight = r.TH1D("mergedMass5_dRWeight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_dRWeight = r.TH1D("mergedMass6_dRWeight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_weight = r.TH1D("mergedMass4_weight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_weight = r.TH1D("mergedMass5_weight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_weight = r.TH1D("mergedMass6_weight", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sigWeight_region = [r.TH1D("mergedMass4_sigWeight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_sigWeight_region = [r.TH1D("mergedMass5_sigWeight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_sigWeight_region = [r.TH1D("mergedMass6_sigWeight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_dRWeight_region = [r.TH1D("mergedMass4_dRWeight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_dRWeight_region = [r.TH1D("mergedMass5_dRWeight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_dRWeight_region = [r.TH1D("mergedMass6_dRWeight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_weight_region = [r.TH1D("mergedMass4_weight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_weight_region = [r.TH1D("mergedMass5_weight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_weight_region = [r.TH1D("mergedMass6_weight_"+regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+
+        # apply weight, with no significance cut
+        h_mergedMass4_sigWeight_noSigCut = r.TH1D("mergedMass4_sigWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_sigWeight_noSigCut = r.TH1D("mergedMass5_sigWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_sigWeight_noSigCut = r.TH1D("mergedMass6_sigWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_dRWeight_noSigCut = r.TH1D("mergedMass4_dRWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_dRWeight_noSigCut = r.TH1D("mergedMass5_dRWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_dRWeight_noSigCut = r.TH1D("mergedMass6_dRWeight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_weight_noSigCut = r.TH1D("mergedMass4_weight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass5_weight_noSigCut = r.TH1D("mergedMass5_weight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass6_weight_noSigCut = r.TH1D("mergedMass6_weight_noSigCut", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sigWeight_noSigCut_region = [r.TH1D("mergedMass4_sigWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_sigWeight_noSigCut_region = [r.TH1D("mergedMass5_sigWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_sigWeight_noSigCut_region = [r.TH1D("mergedMass6_sigWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_dRWeight_noSigCut_region = [r.TH1D("mergedMass4_dRWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_dRWeight_noSigCut_region = [r.TH1D("mergedMass5_dRWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_dRWeight_noSigCut_region = [r.TH1D("mergedMass6_dRWeight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_weight_noSigCut_region = [r.TH1D("mergedMass4_weight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass5_weight_noSigCut_region = [r.TH1D("mergedMass5_weight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass6_weight_noSigCut_region = [r.TH1D("mergedMass6_weight_noSigCut_" + regions[i], "Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+       
+        # DV-jet
+        h_dR_jetDV_same = r.TH1D("dR_jetDV_same", "dR(ClosestJet_{DV_{1}}), DV_{cm}", 120, 0., 6.)
+        h_dR_jetDV_mixed = r.TH1D("dR_jetDV_mixed", "dR(ClosestJet_{DV_{1}}), DV_{cm}", 120, 0., 6.)
+        h_dR_jetDV1_same = r.TH1D("dR_jetDV1_same", "dR(ClosestJet_{DV_{1}}), DV_{1}", 120, 0., 6.)
+        h_dR_jetDV1_mixed = r.TH1D("dR_jetDV1_mixed", "dR(ClosestJet_{DV_{1}}), DV_{1}", 120, 0., 6.)
+        h_dR_jetDV2_same = r.TH1D("dR_jetDV2_same", "dR(ClosestJet_{DV_{1}}), DV_{2}", 120, 0., 6.)
+        h_dR_jetDV2_mixed = r.TH1D("dR_jetDV2_mixed", "dR(ClosestJet_{DV_{1}}), DV_{2}", 120, 0., 6.)
+        h_dR_jetDV_same_region = [r.TH1D("dR_jetDV_same_"+regions[i], ";dR(ClosestJet_{DV_{1}}, DV_{cm})", 120, 0., 6.) for i in regions]
+        h_dR_jetDV_mixed_region = [r.TH1D("dR_jetDV_mixed_"+regions[i], ";dR(ClosestJet_{DV_{1}}, DV_{cm})", 120, 0., 6.) for i in regions]
+        h_dR_jetDV1_same_region = [r.TH1D("dR_jetDV1_same_"+regions[i], ";dR(ClosestJet_{DV_{1}}, DV_{1})", 120, 0., 6.) for i in regions]
+        h_dR_jetDV1_mixed_region = [r.TH1D("dR_jetDV1_mixed_"+regions[i], ";dR(ClosestJet_{DV_{1}}, DV_{1})", 120, 0., 6.) for i in regions]
+        h_dR_jetDV2_same_region = [r.TH1D("dR_jetDV2_same_"+regions[i], ";dR(ClosestJet_{DV_{1}}, DV_{2})", 120, 0., 6.) for i in regions]
+        h_dR_jetDV2_mixed_region = [r.TH1D("dR_jetDV2_mixed_"+regions[i], ";dR(ClosestJet_{DV_{1}}, DV_{2})", 120, 0., 6.) for i in regions]
+        #DV-DV
+        h_dR_DVDV_same = r.TH1D("dR_DVDV_same", ";dR(DV_{1}, DV_{2})", 120, 0., 6.)
+        h_dR_DVDV_mixed = r.TH1D("dR_DVDV_mixed", ";dR(DV_{1}, DV_{2})", 120, 0., 6.)
+        h_dPhi_DVDV_same = r.TH1D("dPhi_DVDV_same", ";d#phi(DV_{1}, DV_{2})", 640, -3.2, 3.2)
+        h_dPhi_DVDV_mixed = r.TH1D("dPhi_DVDV_mixed", ";d#phi(DV_{1}, DV_{2})", 640, -3.2, 3.2)
+        h_dR_DVDV_same_sig100Cut = r.TH1D("dR_DVDV_same_sig100Cut", ";dR(DV_{1}, DV_{2})", 120, 0., 6.)
+        h_dR_DVDV_mixed_sig100Cut = r.TH1D("dR_DVDV_mixed_sig100Cut", ";dR(DV_{1}, DV_{2})", 120, 0., 6.)
+        h_dPhi_DVDV_same_sig100Cut = r.TH1D("dPhi_DVDV_same_sig100Cut", ";d#phi(DV_{1}, DV_{2})", 640, -3.2, 3.2)
+        h_dPhi_DVDV_mixed_sig100Cut = r.TH1D("dPhi_DVDV_mixed_sig100Cut", ";d#phi(DV_{1}, DV_{2})", 640, -3.2, 3.2)
+        h_dR_DVDV_same_region = [r.TH1D("dR_DVDV_same_"+regions[i], ";dR(DV_{1}, DV_{2})", 120, 0., 6.) for i in regions]
+        h_dR_DVDV_mixed_region = [r.TH1D("dR_DVDV_mixed_"+regions[i], ";dR(DV_{1}, DV_{2})", 120, 0., 6.) for i in regions]
+        h_dPhi_DVDV_same_region = [r.TH1D("dPhi_DVDV_same_"+regions[i], ";dPhi(DV_{1}, DV_{2})", 120, 0., 6.) for i in regions]
+        h_dPhi_DVDV_mixed_region = [r.TH1D("dPhi_DVDV_mixed_"+regions[i], ";dPhi(DV_{1}, DV_{2})", 120, 0., 6.) for i in regions]
+        # DV mass
+        h_DV_m = r.TH1D("DV_m", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_DV_m_2track = r.TH1D("DV_m_2track", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_DV_m_3track = r.TH1D("DV_m_3track", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_DV_m_4track = r.TH1D("DV_m_4track", ";m_{DV} [GeV]", 250, 0., 25.)
+        h_DV_m_5track = r.TH1D("DV_m_5track", ";m_{DV} [GeV]", 200, 0., 20.)
+        h_DV_m_6track = r.TH1D("DV_m_6track", ";m_{DV} [GeV]", 200, 0., 20.)
+        h_DV_m_7track = r.TH1D("DV_m_7track", ";m_{DV} [GeV]", 200, 0., 20.)
+
+        h_DV_m_region = [r.TH1D("DV_m_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_DV_m_2track_region = [r.TH1D("DV_m_2track_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_DV_m_3track_region = [r.TH1D("DV_m_3track_"+regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_DV_m_4track_region = [r.TH1D("DV_m_4track_"+regions[i], ";m_{DV} [GeV]", 250, 0., 25.) for i in regions]
+        h_DV_m_5track_region = [r.TH1D("DV_m_5track_"+regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
+        h_DV_m_6track_region = [r.TH1D("DV_m_6track_"+regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
+        h_DV_m_7track_region = [r.TH1D("DV_m_7track_"+regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
+
+        h_recoDV_m = r.TH1D("recoDV_m", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_recoDV_m_2track = r.TH1D("recoDV_m_2track", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_recoDV_m_3track = r.TH1D("recoDV_m_3track", ";m_{DV} [GeV]", 5000, 0., 500.)
+        h_recoDV_m_4track = r.TH1D("recoDV_m_4track", ";m_{DV} [GeV]", 250, 0., 25.)
+        h_recoDV_m_5track = r.TH1D("recoDV_m_5track", ";m_{DV} [GeV]", 200, 0., 20.)
+        h_recoDV_m_6track = r.TH1D("recoDV_m_6track", ";m_{DV} [GeV]", 200, 0., 20.)
+        h_recoDV_m_7track = r.TH1D("recoDV_m_7track", ";m_{DV} [GeV]", 200, 0., 20.)
+        h_recoDV_m_region = [r.TH1D("recoDV_m_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_recoDV_m_2track_region = [r.TH1D("recoDV_m_2track_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_recoDV_m_3track_region = [r.TH1D("recoDV_m_3track_" + regions[i], ";m_{DV} [GeV]", 5000, 0., 500.) for i in regions]
+        h_recoDV_m_4track_region = [r.TH1D("recoDV_m_4track_" + regions[i], ";m_{DV} [GeV]", 250, 0., 25.) for i in regions]
+        h_recoDV_m_5track_region = [r.TH1D("recoDV_m_5track_" + regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
+        h_recoDV_m_6track_region = [r.TH1D("recoDV_m_6track_" + regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
+        h_recoDV_m_7track_region = [r.TH1D("recoDV_m_7track_" + regions[i], ";m_{DV} [GeV]", 200, 0., 20.) for i in regions]
+
+        # Mass hists using Ks combination
+        # Same
+        h_sig4_same_ks = r.TH1D("sig4_same_ks", ";Significance", 200, 0., 1000.)
+        h_sig4_same_ks_region = [r.TH1D("sig4_same_ks_" + regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        # Mixed
+        h_sig4_mixed_ks = r.TH1D("sig4_mixed_ks", ";Significance", 200, 0., 1000.)
+        h_sig4_mixed_ks_region = [r.TH1D("sig4_mixed_ks_" + regions[i], ";Significance", 200, 0., 1000.) for i in regions]
+        h_mergedMass4_mixed_ks = r.TH1D("mergedMass4_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_ks_region = [r.TH1D("mergedMass4_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_sigWeight_noSigCut_ks = r.TH1D("mergedMass4_sigWeight_noSigCut_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sigWeight_noSigCut_ks_region = [r.TH1D("mergedMass4_sigWeight_noSigCut_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        """
+        h_mergedMass4_dRWeight_noSigCut_ks = r.TH1D("mergedMass4_dRWeight_noSigCut_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_dRWeight_noSigCut_ks_region = [r.TH1D("mergedMass4_dRWeight_noSigCut_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_weight_noSigCut_ks = r.TH1D("mergedMass4_weight_noSigCut_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_weight_noSigCut_ks_region = [r.TH1D("mergedMass4_weight_noSigCut_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        """
+        h_mergedMass4_sig100Cut_ks = r.TH1D("mergedMass4_sig100Cut_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sig100Cut_ks_region = [r.TH1D("mergedMass4_sig100Cut_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_sigWeight_ks = r.TH1D("mergedMass4_sigWeight_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_sigWeight_ks_region = [r.TH1D("mergedMass4_sigWeight_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        """
+        h_mergedMass4_dRWeight_ks = r.TH1D("mergedMass4_dRWeight_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_dRWeight_ks_region = [r.TH1D("mergedMass4_dRWeight_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        h_mergedMass4_weight_ks = r.TH1D("mergedMass4_weight_ks", ";Merged mass [GeV]", 1000, 0., 100.)
+        h_mergedMass4_weight_ks_region = [r.TH1D("mergedMass4_weight_ks_" + regions[i], ";Merged mass [GeV]", 1000, 0., 100.) for i in regions]
+        """
+        h_mergedMass4_dv1_vs_dv2 = r.TH2D("mergedMass4_dv1_vs_dv2", ";m_{DV_1} [GeV];m_{DV_2} [GeV]", 1000, 0., 10., 1000, 0., 10.)
+
+        # use Ks sideband
+        h_mv4_sideband = r.TH1D("mv4_sideband", ";m_{DV} [GeV]", 1000, 0., 100.)
+        # only low S (S < 30)
+        h_mv4_lowS = r.TH1D("mv4_lowS", ";m_{DV} [GeV]", 1000, 0., 100.)
+        # only middel S (70 < S < 100)
+        h_mv4_middleS = r.TH1D("mv4_middleS", ";m_{DV} [GeV]", 1000, 0., 100.)
+        # only high S (S > 500)
+        h_mv4_highS = r.TH1D("mv4_highS", ";m_{DV} [GeV]", 1000, 0., 100.)
+        
+        h_mergedMass4_sigWeight.Sumw2()
+        h_mergedMass5_sigWeight.Sumw2()
+        h_mergedMass6_sigWeight.Sumw2()
+        h_mergedMass4_dRWeight.Sumw2()
+        h_mergedMass5_dRWeight.Sumw2()
+        h_mergedMass6_dRWeight.Sumw2()
+        h_mergedMass4_weight.Sumw2()
+        h_mergedMass5_weight.Sumw2()
+        h_mergedMass6_weight.Sumw2()
 
         events = []
-        for entry in range(tree.GetEntries()):
+        eventID = 0
+        entries = t.GetEntries()
+        for entry in range(entries):
             if (entry % 10000 == 0):
-                print("Processed {}/{}".format(entry, tree.GetEntries()))
-            ientry = tree.LoadTree(entry)
+                print ("Processed {}/{}".format(entry, entries))
+            ientry = t.LoadTree(entry)
             if ientry < 0:
                 break
-            nb = tree.GetEntry(ientry)
+            nb = t.GetEntry(ientry)
             if nb <= 0:
+                continue
+
+            if (not ord(t.DRAW_pass_triggerFlags)):
                 continue
             vertex = []
             tracks = []
-
-            if (not ord(tree.DRAW_pass_triggerFlags)):
-                continue
-
-            for idv in range(tree.DV_n):
-                # The DV passes
-                # - DV in fiducial volume
-                # - chisq/nDoF < 5 for DV fit
-                # - DV > 4 mm from PV
-                # No restrictions on DV mass or track-multiplicity
-                if (tree.DV_passFiducialCut[idv] and tree.DV_passChiSqCut[idv] and tree.DV_passDistCut[idv] and tree.DV_passMaterialVeto[idv]):
-                    vertex.append([tree.DV_m[idv], tree.DV_nTracks[idv], tree.DV_rxy[idv], tree.DV_z[idv], tree.DV_index[idv]])
-                    track = []
-                    for itrack in range(len(tree.dvtrack_ptWrtDV)):
-                        if (tree.DV_index[idv] != tree.dvtrack_DVIndex[itrack]):
+            covariance = []
+            jets = []
+            for ijet in range(len(t.calibJet_Pt)):
+                #if (t.calibJet_Jvt[ijet] > 0.64):
+                jets.append([t.calibJet_Pt[ijet], t.calibJet_Eta[ijet], t.calibJet_Phi[ijet], t.calibJet_M[ijet]*0.001])
+                    
+            for idv in range(len(t.DV_m)):
+                if (not t.DV_passFiducialCut[idv]):
+                    continue
+                if (not t.DV_passDistCut[idv]):
+                    continue
+                if (not t.DV_passChiSqCut[idv]):
+                    continue
+                if (not t.DV_passMaterialVeto[idv]):
+                    continue
+                if (not doUnblind):
+                    if (t.DV_m[idv] > 10. and t.DV_nTracks[idv] >= 5):
+                        continue
+                    if (t.DV_m[idv] > 20. and t.DV_nTracks[idv] == 4):
+                        continue
+                    if (t.DV_rxy[idv] < 22.):
+                        if (t.DV_m[idv] > 10. and t.DV_nTracksSel[idv] >= 5):
                             continue
-                        track.append([tree.dvtrack_ptWrtDV[itrack],
-                                      tree.dvtrack_etaWrtDV[itrack],
-                                      tree.dvtrack_phiWrtDV[itrack],
-                                      m_pion,
-                                      tree.dvtrack_isAssociated[itrack],
-                                      tree.dvtrack_DVIndex[itrack],
-                                      tree.dvtrack_failedExtrapolation[itrack],
-                                      r.TMath.Abs(tree.dvtrack_d0[itrack]/tree.dvtrack_errd0[itrack]),
-                                      tree.dvtrack_charge[itrack]])
-                    tracks.append(track)
+                        if (t.DV_m[idv] > 20. and t.DV_nTracksSel[idv] == 4):
+                            continue
+                if (t.DV_nTracks[idv] < 2):
+                    continue
+                vertex.append([t.DV_x[idv], t.DV_y[idv], t.DV_z[idv], t.DV_m[idv], t.DV_rxy[idv], t.DV_nTracks[idv], t.DV_nTracksSel[idv]])
+                covariance.append([t.DV_covariance0[idv], t.DV_covariance1[idv], t.DV_covariance2[idv], t.DV_covariance3[idv], t.DV_covariance4[idv], t.DV_covariance5[idv]])
+                track = []
+                for itrack in range(len(t.dvtrack_ptWrtDV)):
+                    if (t.DV_index[idv] != t.dvtrack_DVIndex[itrack]):
+                        continue
+                    track.append([t.dvtrack_ptWrtDV[itrack],
+                                  t.dvtrack_etaWrtDV[itrack],
+                                  t.dvtrack_phiWrtDV[itrack],
+                                  m_pion,
+                                  t.dvtrack_isAssociated[itrack],
+                                  t.dvtrack_charge[itrack],
+                                  r.TMath.Abs(t.dvtrack_d0[itrack]/t.dvtrack_errd0[itrack])
+                                  ])
+                tracks.append(track)
+                eventID += 1
             if (len(vertex) == 0):
                 continue
-            events.append([vertex, tracks])
-
-        ### Histograms
-        h_2track_mass = r.TH1D("2track_mass", ";m_{DV} [GeV]", 1000, 0., 1.)
-        h_2track_rxy = r.TH1D("2track_rxy", ";r_{xy} mm", 300, 0., 300.)
-        h_2track_z = r.TH1D("2track_z", ";z mm", 600, -300., 300.)
-
-        h_3track_mass_tight = r.TH1D("3track_mass_tight", ";m_{DV} [GeV]", 1000, 0., 1.)
-        
-        h_3track_mass = r.TH1D("3track_mass", ";m_{DV} [GeV]", 1000, 0., 1.)
-        h_3track_rxy = r.TH1D("3track_rxy", ";r_{xy} mm", 300, 0., 300.)
-        h_3track_z = r.TH1D("3track_z", ";z mm", 600, -300., 300.)
-
-        h_ks3trk_m = r.TH1D("ks_3trk_m", ";m_{DV} [GeV]", 1000, 0., 1.)
-        h_ks3trk_rxy = r.TH1D("ks_3trk_rxy", ";r_{xy} [mm]", 300, 0., 300.)
-        h_ks3trk_z = r.TH1D("ks_3trk_z", ";z [mm]", 600, -300., 300.)
-        h_ks4trk_m = r.TH1D("ks_4trk_m", ";m_{DV} [GeV]", 1000, 0., 1.)
-        h_ks4trk_rxy = r.TH1D("ks_4trk_rxy", ";r_{xy} [mm]", 300, 0., 300.)
-        h_ks4trk_z = r.TH1D("ks_4trk_z", ";z [mm]", 600, -300., 300.)
-        
-        h_4track_mass = r.TH1D("4track_mass", ";m_{DV} [GeV]", 1000, 0., 1.)
-        h_4track_rxy = r.TH1D("4track_rxy", ";r_{xy} mm", 300, 0., 300.)
-        h_4track_z = r.TH1D("4track_z", ";z mm", 600, -300., 300.)
-        h_4track_mass_fullRange = r.TH1D("4track_mass_fullRange", ";m_{DV} [GeV]", 250, 0., 25.)
-
-        h_ditrack_from3trk = r.TH1D("ditrack_from3trk", ";m_{DV} [GeV]", 500, 0., 1.)
-        h_ditrack_from4trk = r.TH1D("ditrack_from4trk", ";m_{DV} [GeV]", 2500, 0., 5.)
-
-        h_mv_4track = r.TH1D("mv_4track", ";m_{DV} [GeV]", 1000, 0., 100.)
-
-        # For 2-track DV pairs' kinematics
-        h_dPhi = r.TH1D("dPhi", ";d#phi", 640, -3.2, 3.2)
-        h_dEta = r.TH1D("dEta", ";d#eta", 100, 0., 10.)
-        h_dR = r.TH1D("dR", ";dR(DV_{1}, DV_{2})", 120, 0., 6.)
-
-        # Track combination
+            events.append([eventID, vertex, tracks, covariance, jets])
+            
+        print ("Looping for same-event")
         for iEvent in range(len(events)):
-            dv = events[iEvent][0]
-            dvtracks = events[iEvent][1]
-            for idv in range(len(dv)):
-                m_dv = dv[idv][0]
-                nTracks = len(dvtracks[idv])
-                dv_tracks = r.TLorentzVector()
+            dvs = events[iEvent][1]
+            if (len(dvs) < 2):
+                continue
+            dvtracks = events[iEvent][2]
+            cov = events[iEvent][3]
+            jets = events[iEvent][4]
+
+            for idv in range(len(dvs)-1):
+                for jdv in range(idv+1, len(dvs)):
+                    dv1, dv2 = getDVMatrix(dvs[idv]), getDVMatrix(dvs[jdv])
+                    cov1, cov2 = getCovarianceMatrix(cov[idv]), getCovarianceMatrix(cov[jdv])
+                    distance = getDistance(dv1, dv2)
+                    sig = getSignificance(dv1, dv2, cov1, cov2)
+
+                    dv_rxy1 = dvs[idv][4]
+                    dv_rxy2 = dvs[jdv][4]
+                    region1 = getRegion(dv_rxy1)
+                    region2 = getRegion(dv_rxy2)
+                    tracks1, nTracks_dv1, nTracksSel_dv1 = getDVTracks(dvtracks[idv])
+                    tracks2, nTracks_dv2, nTracksSel_dv2 = getDVTracks(dvtracks[jdv])
+                    
+                    nTracks = nTracks_dv1 + nTracks_dv2
+                    mergedDV = tracks1 + tracks2
+                    mergedMass = mergedDV.M()
+                    
+                    closestJet = getClosestJet(dvs[idv], jets)
+                    dR_jetDV = closestJet.DeltaR(mergedDV)
+                    dR_DVDV = tracks1.DeltaR(tracks2)
+                    dPhi_DVDV = tracks1.DeltaPhi(tracks2)
+                    dR_jetDV1 = closestJet.DeltaR(tracks1)
+                    dR_jetDV2 = closestJet.DeltaR(tracks2)
+
+                    h_sig_same.Fill(sig)
+                    h_distance_same.Fill(distance)
+                    h_dR_jetDV_same.Fill(dR_jetDV)
+                    h_dR_jetDV1_same.Fill(dR_jetDV1)
+                    h_dR_jetDV2_same.Fill(dR_jetDV2)
+                    h_dR_DVDV_same.Fill(dR_DVDV)
+                    h_dPhi_DVDV_same.Fill(dPhi_DVDV)
+                    # region
+                    h_dR_jetDV_same_region[region1].Fill(dR_jetDV)
+                    h_dR_jetDV1_same_region[region1].Fill(dR_jetDV1)
+                    h_dR_jetDV2_same_region[region2].Fill(dR_jetDV2)
+                    h_dR_DVDV_same_region[region1].Fill(dR_DVDV)
+                    h_dPhi_DVDV_same_region[region1].Fill(dPhi_DVDV)
+                    h_distance_same_region[region1].Fill(distance)
+
+                    if (sig < 100):
+                        h_dR_DVDV_same_sig100Cut.Fill(dR_DVDV)
+                        h_dPhi_DVDV_same_sig100Cut.Fill(dPhi_DVDV)
+                    if (nTracks == 4):
+                        h_sig4_same.Fill(sig)
+                        h_mergedMass4_same.Fill(mergedMass)
+                        h_sig4_same_region[region1].Fill(sig)
+                    if (nTracks == 5):
+                        h_sig5_same.Fill(sig)
+                        h_mergedMass5_same.Fill(mergedMass)
+                        h_sig5_same_region[region1].Fill(sig)
+                    if (nTracks == 6):
+                        h_sig6_same.Fill(sig)
+                        h_mergedMass6_same.Fill(mergedMass)
+                        h_sig6_same_region[region1].Fill(sig)
+
+                    # Find 2-kshort DV
+                    # dvtrack_ptWrtDV = dvtracks[idv][0][0],
+                    # that means, 1st track of idv-th pTWrtDV
+                    dv1_nTracks = len(dvtracks[idv])
+                    dv2_nTracks = len(dvtracks[jdv])
+                    nTracks = dv1_nTracks + dv2_nTracks
+                    if (nTracks == 4):
+                        dv1_track1 = r.TLorentzVector()
+                        dv1_track2 = r.TLorentzVector()
+                        dv2_track1 = r.TLorentzVector()
+                        dv2_track2 = r.TLorentzVector()
+
+                        if (trackMass == "pi"):
+                            m_track1 = m_pion
+                            m_track2 = m_pion
+                        elif (trackMass == "kaon"):
+                            m_track1 = m_kaon
+                            m_track2 = m_kaon
+                        elif (trackMass == "proton"):
+                            m_track1 = m_pion
+                            m_track2 = m_proton
+                        
+                        dv1_track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], m_track1)
+                        dv1_track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], m_track2)
+                        dv2_track1.SetPtEtaPhiM(dvtracks[jdv][0][0], dvtracks[jdv][0][1], dvtracks[jdv][0][2], m_track1)
+                        dv2_track2.SetPtEtaPhiM(dvtracks[jdv][1][0], dvtracks[jdv][1][1], dvtracks[jdv][1][2], m_track2)
+                        isOpposite_dv1 = True if (dvtracks[idv][0][5] * dvtracks[idv][1][5] == -1) else False
+                        isOpposite_dv2 = True if (dvtracks[jdv][0][5] * dvtracks[jdv][1][5] == -1) else False
+                        m_dv1 = (dv1_track1 + dv1_track2).M()
+                        m_dv2 = (dv2_track1 + dv2_track2).M()
+                        charge_dv1 = dvtracks[idv][0][5] * dvtracks[idv][1][5]
+                        charge_dv2 = dvtracks[jdv][0][5] * dvtracks[jdv][1][5]
+
+                        # If 2 DVs are kshort-like
+                        isKs_dv1 = isKshort(m_dv1, charge_dv1)
+                        isKs_dv2 = isKshort(m_dv2, charge_dv2)
+                        mergedMass = (dv1_track1 + dv1_track2 + dv2_track1 + dv2_track2).M()
+                        if (isKs_dv1 and isKs_dv2):
+                            h_sig4_same_ks.Fill(sig)
+                            h_sig4_same_ks_region[region1].Fill(sig)
+
+        print("Looping for mixed-event")
+        for iEvent in range(len(events)-1):
+            if (len(events) < 3):
+                continue
+            dvs1 = events[iEvent][1]
+            dvtracks1 = events[iEvent][2]
+            covs1 = events[iEvent][3]
+            
+            dvs2 = events[iEvent+1][1]
+            dvtracks2 = events[iEvent+1][2]
+            covs2 = events[iEvent+1][3]
+            
+            eventList = [i for i in range(len(events))]
+            isSame = True
+            i = -1
+            while isSame:
+                i = random.choice(eventList)
+                if (i != iEvent and i != iEvent+1):
+                    isSame = False
+            jets = events[i][4]
+
+            
+            for idv in range(len(dvs1)):
+                for jdv in range(len(dvs2)):
+                    dv1, dv2 = getDVMatrix(dvs1[idv]), getDVMatrix(dvs2[jdv])
+                    cov1, cov2 = getCovarianceMatrix(covs1[idv]), getCovarianceMatrix(covs2[jdv])
+                    distance = getDistance(dv1, dv2)
+                    sig = getSignificance(dv1, dv2, cov1, cov2)
+
+                    dv_rxy1 = dvs1[idv][4]
+                    dv_rxy2 = dvs2[jdv][4]
+                    region1 = getRegion(dv_rxy1)
+                    region2 = getRegion(dv_rxy2)
+                    tracks1, nTracks_dv1, nTracksSel_dv1 = getDVTracks(dvtracks1[idv])
+                    tracks2, nTracks_dv2, nTracksSel_dv2 = getDVTracks(dvtracks2[jdv])
+
+                    nTracks = nTracks_dv1 + nTracks_dv2
+                    mergedDV = tracks1 + tracks2
+                    mergedMass = mergedDV.M()
+
+                    closestJet = getClosestJet(dvs1[idv], jets)
+                    dR_jetDV = closestJet.DeltaR(mergedDV)
+                    dR_DVDV = tracks1.DeltaR(tracks2)
+                    dPhi_DVDV = tracks1.DeltaPhi(tracks2)
+                    dR_jetDV1 = closestJet.DeltaR(tracks1)
+                    dR_jetDV2 = closestJet.DeltaR(tracks2)
+
+                    h_sig_mixed.Fill(sig)
+                    h_distance_mixed.Fill(distance)
+                    h_dR_jetDV_mixed.Fill(dR_jetDV)
+                    h_dR_jetDV1_mixed.Fill(dR_jetDV1)
+                    h_dR_jetDV2_mixed.Fill(dR_jetDV2)
+                    h_dR_DVDV_mixed.Fill(dR_DVDV)
+                    h_dPhi_DVDV_mixed.Fill(dPhi_DVDV)
+                    # region
+                    h_dR_jetDV_mixed_region[region1].Fill(dR_jetDV)
+                    h_dR_jetDV1_mixed_region[region1].Fill(dR_jetDV1)
+                    h_dR_jetDV2_mixed_region[region1].Fill(dR_jetDV2)
+                    h_dR_DVDV_mixed_region[region1].Fill(dR_DVDV)
+                    h_dPhi_DVDV_mixed_region[region1].Fill(dPhi_DVDV)
+                    h_distance_mixed_region[region1].Fill(distance)
+
+                    # Weight
+                    if (doWeight):
+                        if region1 == -1:
+                            continue
+                        ratioFile = r.TFile("ratio.root", "READ")
+                        sig4Ratio = ratioFile.Get("sig4_ratio")
+                        sig4Ratio_region = ratioFile.Get("sig_4_{}_ratio".format(regions[region1]))
+                        sig5Ratio = ratioFile.Get("sig5_ratio")
+                        sig5Ratio_region = ratioFile.Get("sig_5_{}_ratio".format(regions[region1]))
+                        sig6Ratio = ratioFile.Get("sig6_ratio")
+                        sig6Ratio_region = ratioFile.Get("sig_6_{}_ratio".format(regions[region1]))
+                        
+                        dRRatio = ratioFile.Get("dR_jetDV2_ratio")
+                        dRRatio_region = ratioFile.Get("dR_jetDV2_{}_ratio".format(regions[region1]))
+                        sigBin = h_sig_mixed.FindBin(sig)
+                        #if (sigBin < bin1):
+                        if (sig < 100.):
+                            sig4Weight = 1 - sig4Ratio.GetBinContent(sigBin)
+                            sig4Weight_region = 1 - sig4Ratio_region.GetBinContent(sigBin)
+                            sig5Weight = 1 - sig5Ratio.GetBinContent(sigBin)
+                            sig5Weight_region = 1 - sig6Ratio_region.GetBinContent(sigBin)
+                            sig6Weight = 1 - sig6Ratio.GetBinContent(sigBin)
+                            sig6Weight_region = 1 - sig6Ratio_region.GetBinContent(sigBin)
+                            if (sig4Weight < 0):
+                                sig4Weight = 0
+                            if (sig5Weight < 0):
+                                sig5Weight = 0
+                            if (sig6Weight < 0):
+                                sig6Weight = 0
+                            if (sig4Weight_region < 0):
+                                sig4Weight_region = 0
+                            if (sig5Weight_region < 0):
+                                sig5Weight_region = 0
+                            if (sig6Weight_region < 0):
+                                sig6Weight_region = 0
+                        else:
+                            sig4Weight = 0
+                            sig4Weight_region = 0
+                            sig5Weight = 0
+                            sig5Weight_region = 0
+                            sig6Weight = 0
+                            sig6Weight_region = 0
+                        drBin = h_dR_jetDV2_mixed.FindBin(dR_jetDV2)
+                        drWeight = dRRatio.GetBinContent(drBin)
+                        drWeight_region = dRRatio_region.GetBinContent(drBin)
+                        weight4 = sig4Weight * drWeight
+                        weight4_region = sig4Weight_region * drWeight_region
+                        weight5 = sig5Weight * drWeight
+                        weight5_region = sig5Weight_region * drWeight_region
+                        weight6 = sig6Weight * drWeight
+                        weight6_region = sig6Weight_region * drWeight_region
+
+                    if (nTracks == 4):
+                        h_sig4_mixed.Fill(sig)
+                        h_mergedMass4_mixed.Fill(mergedMass)
+                        h_sig4_mixed_region[region1].Fill(sig)
+                        h_mergedMass4_region[region1].Fill(mergedMass)
+
+                        if (doWeight):
+                            h_mergedMass4_sigWeight_noSigCut.Fill(mergedMass, sig4Weight)
+                            h_mergedMass4_sigWeight_noSigCut_region[region1].Fill(mergedMass, sig4Weight_region)
+                            h_mergedMass4_dRWeight_noSigCut.Fill(mergedMass, drWeight)
+                            h_mergedMass4_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
+                            h_mergedMass4_weight_noSigCut.Fill(mergedMass, weight4)
+                            h_mergedMass4_weight_noSigCut_region[region1].Fill(mergedMass, weight4_region)
+                        if (sig < 100.):
+                            h_mergedMass4_sig100Cut.Fill(mergedMass)
+                            h_mergedMass4_sig100Cut_region[region1].Fill(mergedMass)
+                            if (doWeight):
+                                h_mergedMass4_sigWeight.Fill(mergedMass, sig4Weight)
+                                h_mergedMass4_dRWeight.Fill(mergedMass, drWeight)
+                                h_mergedMass4_weight.Fill(mergedMass, weight4)
+                                h_mergedMass4_sigWeight_region[region1].Fill(mergedMass, sig4Weight_region)
+                                h_mergedMass4_dRWeight_region[region1].Fill(mergedMass, drWeight_region)
+                                h_mergedMass4_weight_region[region1].Fill(mergedMass, weight4_region)
+                    if (nTracks == 5):
+                        h_sig5_mixed.Fill(sig)
+                        h_mergedMass5_mixed.Fill(mergedMass)
+                        h_sig5_mixed_region[region1].Fill(sig)
+                        h_mergedMass5_region[region1].Fill(mergedMass)
+                        if (doWeight):
+                            h_mergedMass5_sigWeight_noSigCut.Fill(mergedMass, sig5Weight)
+                            h_mergedMass5_sigWeight_noSigCut_region[region1].Fill(mergedMass, sig5Weight_region)
+                            h_mergedMass5_dRWeight_noSigCut.Fill(mergedMass, drWeight)
+                            h_mergedMass5_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
+                            h_mergedMass5_weight_noSigCut.Fill(mergedMass, weight5)
+                            h_mergedMass5_weight_noSigCut_region[region1].Fill(mergedMass, weight5_region)
+                        if (sig < 100.):
+                            h_mergedMass5_sig100Cut.Fill(mergedMass)
+                            h_mergedMass5_sig100Cut_region[region1].Fill(mergedMass)
+                            if (doWeight):
+                                h_mergedMass5_sigWeight.Fill(mergedMass, sig5Weight)
+                                h_mergedMass5_dRWeight.Fill(mergedMass, drWeight)
+                                h_mergedMass5_weight.Fill(mergedMass, weight5)
+                                h_mergedMass5_sigWeight_region[region1].Fill(mergedMass, sig5Weight_region)
+                                h_mergedMass5_dRWeight_region[region1].Fill(mergedMass, drWeight_region)
+                                h_mergedMass5_weight_region[region1].Fill(mergedMass, weight5_region)
+                    if (nTracks == 6):
+                        h_sig6_mixed.Fill(sig)
+                        h_mergedMass6_mixed.Fill(mergedMass)
+                        h_sig6_mixed_region[region1].Fill(sig)
+                        h_mergedMass6_region[region1].Fill(mergedMass)
+                        if (doWeight):
+                            h_mergedMass6_sigWeight_noSigCut.Fill(mergedMass, sig6Weight)
+                            h_mergedMass6_sigWeight_noSigCut_region[region1].Fill(mergedMass, sig6Weight_region)
+                            h_mergedMass6_dRWeight_noSigCut.Fill(mergedMass, drWeight)
+                            h_mergedMass6_dRWeight_noSigCut_region[region1].Fill(mergedMass, drWeight_region)
+                            h_mergedMass6_weight_noSigCut.Fill(mergedMass, weight6)
+                            h_mergedMass6_weight_noSigCut_region[region1].Fill(mergedMass, weight6_region)
+                        if (sig < 100.):
+                            h_mergedMass6_sig100Cut.Fill(mergedMass)
+                            h_mergedMass6_sig100Cut_region[region1].Fill(mergedMass)
+                            if (doWeight):
+                                h_mergedMass6_sigWeight.Fill(mergedMass, sig6Weight)
+                                h_mergedMass6_dRWeight.Fill(mergedMass, drWeight)
+                                h_mergedMass6_weight.Fill(mergedMass, weight6)
+                                h_mergedMass6_sigWeight_region[region1].Fill(mergedMass, sig6Weight_region)
+                                h_mergedMass6_dRWeight_region[region1].Fill(mergedMass, drWeight_region)
+                                h_mergedMass6_weight_region[region1].Fill(mergedMass, weight6_region)
+
+                    # Find 2-kshort DV
+                    # dvtrack_ptWrtDV = dvtracks[idv][0][0],
+                    # that means, 1st track of idv-th pTWrtDV
+                    dv1_nTracks = len(dvtracks1[idv])
+                    dv2_nTracks = len(dvtracks2[jdv])
+                    nTracks = dv1_nTracks + dv2_nTracks
+
+                    # Weight
+                    if (doWeight):
+                        if region1 == -1:
+                            continue
+                        ratioFile = r.TFile("ratio_ks.root", "READ")
+                        sig4Ratio = ratioFile.Get("sig4_ks_ratio")
+                        sig4Ratio_region = ratioFile.Get("sig4_ks_{}_ratio".format(regions[region1]))
+                                                
+                        sigBin = h_sig_mixed.FindBin(sig)
+                        #if (sigBin < bin1):
+                        if (sig < 100.):
+                            sig4Weight = 1 - sig4Ratio.GetBinContent(sigBin)
+                            sig4Weight_region = 1 - sig4Ratio_region.GetBinContent(sigBin)
+                            if (sig4Weight < 0):
+                                sig4Weight = 0
+                            if (sig4Weight_region < 0):
+                                sig4Weight_region = 0
+                        else:
+                            sig4Weight = 0
+                            sig4Weight_region = 0
+                                            
+                    if (nTracks == 4):
+                        dv1_track1 = r.TLorentzVector()
+                        dv1_track2 = r.TLorentzVector()
+                        dv2_track1 = r.TLorentzVector()
+                        dv2_track2 = r.TLorentzVector()
+
+                        if (trackMass == "pi"):
+                            m_track1 = m_pion
+                            m_track2 = m_pion
+                        elif (trackMass == "kaon"):
+                            m_track1 = m_kaon
+                            m_track2 = m_kaon
+                        elif (trackMass == "proton"):
+                            m_track1 = m_pion
+                            m_track2 = m_proton
+                        
+                        dv1_track1.SetPtEtaPhiM(dvtracks1[idv][0][0], dvtracks1[idv][0][1], dvtracks1[idv][0][2], m_track1)
+                        dv1_track2.SetPtEtaPhiM(dvtracks1[idv][1][0], dvtracks1[idv][1][1], dvtracks1[idv][1][2], m_track2)
+                        dv2_track1.SetPtEtaPhiM(dvtracks2[jdv][0][0], dvtracks2[jdv][0][1], dvtracks2[jdv][0][2], m_track1)
+                        dv2_track2.SetPtEtaPhiM(dvtracks2[jdv][1][0], dvtracks2[jdv][1][1], dvtracks2[jdv][1][2], m_track2)
+                        isOpposite_dv1 = True if (dvtracks1[idv][0][5] * dvtracks1[idv][1][5] == -1) else False
+                        isOpposite_dv2 = True if (dvtracks2[jdv][0][5] * dvtracks2[jdv][1][5] == -1) else False
+                        m_dv1 = (dv1_track1 + dv1_track2).M()
+                        m_dv2 = (dv2_track1 + dv2_track2).M()
+                        charge_dv1 = dvtracks1[idv][0][5] * dvtracks1[idv][1][5]
+                        charge_dv2 = dvtracks2[jdv][0][5] * dvtracks2[jdv][1][5]
+
+                        # If 2 DVs are kshort-like
+                        # Ks-like: |(Ks - mDV)| < 0.05 && charge is OS
+                        isKs_dv1 = isKshort(m_dv1, charge_dv1)
+                        isKs_dv2 = isKshort(m_dv1, charge_dv2)
+                        mergedMass = (dv1_track1 + dv1_track2 + dv2_track1 + dv2_track2).M()
+
+                        h_mergedMass4_dv1_vs_dv2.Fill(m_dv1, m_dv2)
+                        if (isKs_dv1 and isKs_dv2):
+                            h_sig4_mixed_ks.Fill(sig)
+                            h_mergedMass4_mixed_ks.Fill(mergedMass)
+                            h_sig4_mixed_ks_region[region1].Fill(sig)
+                            h_mergedMass4_ks_region[region1].Fill(mergedMass)
+                            if (sig < 30.):
+                                h_mv4_lowS.Fill(mergedMass)
+                            elif (sig > 70. and sig < 100.):
+                                h_mv4_middleS.Fill(mergedMass)
+                            elif (sig > 500.):
+                                h_mv4_highS.Fill(mergedMass)
+                            if (doWeight):
+                                h_mergedMass4_sigWeight_noSigCut_ks.Fill(mergedMass, sig4Weight)
+                                h_mergedMass4_sigWeight_noSigCut_ks_region[region1].Fill(mergedMass, sig4Weight_region)
+                            if (sig < 100.):
+                                h_mergedMass4_sig100Cut_ks.Fill(mergedMass)
+                                h_mergedMass4_sig100Cut_ks_region[region1].Fill(mergedMass)
+                                if (doWeight):
+                                    h_mergedMass4_sigWeight_ks.Fill(mergedMass, sig4Weight)
+                                    h_mergedMass4_sigWeight_ks_region[region1].Fill(mergedMass, sig4Weight_region)
+
+                        # sideband
+                        if ((isSideband(m_dv1, mean, sigma) and isOpposite_dv1) and (isSideband(m_dv2, mean, sigma) and isOpposite_dv2)):
+                            h_mv4_sideband.Fill(mergedMass)
+                                                    
+
+        print("Looping for DV mass calculation")
+        for iEvent in range(len(events)):
+            dvs = events[iEvent][1]
+            dvtracks = events[iEvent][2]
+            for idv in range(len(dvs)):
+                tracks, nTracks, nTracksSel= getDVTracks(dvtracks[idv])
+                dv_m = tracks.M()
+                dv_rxy = dvs[idv][4]
+                region = getRegion(dv_rxy)
                 
+                h_DV_m.Fill(dv_m)
+                h_DV_m_region[region].Fill(dv_m)
+                h_recoDV_m.Fill(dvs[idv][3])
+                h_recoDV_m_region[region].Fill(dvs[idv][3])
                 if (nTracks == 2):
-                    track1 = r.TLorentzVector()
-                    track2 = r.TLorentzVector()
-                    track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
-                    track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
-                    mass12 = (track1 + track2).M()
-                    if (mass12 <= 1.):
-                        h_2track_mass.Fill(mass12)
-                        h_2track_rxy.Fill(dv[idv][2])
-                        h_2track_z.Fill(dv[idv][3])
-                    
+                    h_DV_m_2track.Fill(dv_m)
+                    h_DV_m_2track_region[region].Fill(dv_m)
+                    h_recoDV_m_2track.Fill(dvs[idv][3])
+                    h_recoDV_m_2track_region[region].Fill(dvs[idv][3])
                 if (nTracks == 3):
-                    track1 = r.TLorentzVector()
-                    track2 = r.TLorentzVector()
-                    track3 = r.TLorentzVector()
-                    
-                    track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
-                    track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
-                    track3.SetPtEtaPhiM(dvtracks[idv][2][0], dvtracks[idv][2][1], dvtracks[idv][2][2], dvtracks[idv][2][3])
-                    
-                    h_3track_mass.Fill((track1+track2+track3).M())
-                    h_3track_rxy.Fill(dv[idv][2])
-                    h_3track_z.Fill(dv[idv][3])
-                    
-                    mass_12 = (track1 + track2).M()
-                    mass_13 = (track1 + track3).M()
-                    mass_23 = (track2 + track3).M()
-
-                    # Is track passed the trackCleaning?
-                    pass_1 = trackCleaning(dv[idv], dvtracks[idv][0])
-                    pass_2 = trackCleaning(dv[idv], dvtracks[idv][1])
-                    pass_3 = trackCleaning(dv[idv], dvtracks[idv][2])
-                    # Check if any of the 3-tracks were associated to the DV,
-                    isAsso_1 = dvtracks[idv][0][4]
-                    isAsso_2 = dvtracks[idv][1][4]
-                    isAsso_3 = dvtracks[idv][2][4]
-
-                    # Selected two tracks should selected-track, and the rest should pass track cleaning
-                    if ((not isAsso_1) and (not isAsso_2) and (pass_3)):
-                        h_ditrack_from3trk.Fill(mass_12)
-                        if (mass_12 <= 1.):
-                            if (not ((dv[idv][2] < 23.5) and isAsso_3)):
-                                h_ks3trk_m.Fill(mass_12)
-                                h_ks3trk_rxy.Fill(dv[idv][2])
-                                h_ks3trk_z.Fill(dv[idv][3])
-                    if ((not isAsso_1) and (not isAsso_3) and (pass_2)):
-                        h_ditrack_from3trk.Fill(mass_13)
-                        if (mass_13 <= 1.):
-                            if (not ((dv[idv][2] < 23.5))):
-                                h_ks3trk_m.Fill(mass_13)
-                                h_ks3trk_rxy.Fill(dv[idv][2])
-                                h_ks3trk_z.Fill(dv[idv][3])
-                    if ((not isAsso_2) and (not isAsso_3) and (pass_1)):
-                        h_ditrack_from3trk.Fill(mass_23)
-                        if (mass_23 <= 1.):
-                            if (not ((dv[idv][2] < 23.5) and isAsso_1)):
-                                h_ks3trk_m.Fill(mass_23)
-                                h_ks3trk_rxy.Fill(dv[idv][2])
-                                h_ks3trk_z.Fill(dv[idv][3])
-
-                    # Properties for accidental crossings mass template
-                    if (not ord(tree.DRAW_pass_DVJETS)):
-                        continue
-                    print("Passed selection")
-                    #if (not ord(tree.BaselineSel_pass)):
-                    
-                        
+                    h_DV_m_3track.Fill(dv_m)
+                    h_DV_m_3track_region[region].Fill(dv_m)
+                    h_recoDV_m_3track.Fill(dvs[idv][3])
+                    h_recoDV_m_3track_region[region].Fill(dvs[idv][3])
                 if (nTracks == 4):
-                    track1 = r.TLorentzVector()
-                    track2 = r.TLorentzVector()
-                    track3 = r.TLorentzVector()
-                    track4 = r.TLorentzVector()
-                    track1.SetPtEtaPhiM(dvtracks[idv][0][0], dvtracks[idv][0][1], dvtracks[idv][0][2], dvtracks[idv][0][3])
-                    track2.SetPtEtaPhiM(dvtracks[idv][1][0], dvtracks[idv][1][1], dvtracks[idv][1][2], dvtracks[idv][1][3])
-                    track3.SetPtEtaPhiM(dvtracks[idv][2][0], dvtracks[idv][2][1], dvtracks[idv][2][2], dvtracks[idv][2][3])
-                    track4.SetPtEtaPhiM(dvtracks[idv][3][0], dvtracks[idv][3][1], dvtracks[idv][3][2], dvtracks[idv][3][3])
-                    if ((track1 + track2 + track3 + track4).M() < 20.):
-                        h_4track_mass.Fill((track1+track2+track3+track4).M())
-                        h_4track_mass_fullRange.Fill((track1 + track2 + track3 + track4).M())
+                    h_DV_m_4track.Fill(dv_m)
+                    h_DV_m_4track_region[region].Fill(dv_m)
+                    h_recoDV_m_4track.Fill(dvs[idv][3])
+                    h_recoDV_m_4track_region[region].Fill(dvs[idv][3])
+                if (nTracks == 5):
+                    h_DV_m_5track.Fill(dv_m)
+                    h_DV_m_5track_region[region].Fill(dv_m)
+                    h_recoDV_m_5track.Fill(dvs[idv][3])
+                    h_recoDV_m_5track_region[region].Fill(dvs[idv][3])
+                if (nTracks == 6):
+                    h_DV_m_6track.Fill(dv_m)
+                    h_DV_m_6track_region[region].Fill(dv_m)
+                    h_recoDV_m_6track.Fill(dvs[idv][3])
+                    h_recoDV_m_6track_region[region].Fill(dvs[idv][3])
+                if (nTracks == 7):
+                    h_DV_m_7track.Fill(dv_m)
+                    h_DV_m_7track_region[region].Fill(dv_m)
+                    h_recoDV_m_7track.Fill(dvs[idv][3])
+                    h_recoDV_m_7track_region[region].Fill(dvs[idv][3])
 
-                    track12 = track1 + track2
-                    track13 = track1 + track3
-                    track14 = track1 + track4
-                    track23 = track2 + track3
-                    track24 = track2 + track4
-                    track34 = track3 + track4
-
-                    mass_12 = track12.M()
-                    mass_13 = track13.M()
-                    mass_14 = track14.M()
-                    mass_23 = track23.M()
-                    mass_24 = track24.M()
-                    mass_34 = track34.M()
-
-                    charge1 = dvtracks[idv][0][8]
-                    charge2 = dvtracks[idv][1][8]
-                    charge3 = dvtracks[idv][2][8]
-                    charge4 = dvtracks[idv][3][8]
-
-                    # DV pair's relation
-                    h_dPhi.Fill(track12.DeltaPhi(track34))
-                    h_dPhi.Fill(track13.DeltaPhi(track24))
-                    h_dPhi.Fill(track14.DeltaPhi(track23))
-                    h_dEta.Fill(r.TMath.Abs(track12.Eta() - track34.Eta()))
-                    h_dEta.Fill(r.TMath.Abs(track13.Eta() - track24.Eta()))
-                    h_dEta.Fill(r.TMath.Abs(track14.Eta() - track23.Eta()))
-                    h_dR.Fill(track12.DeltaR(track34))
-                    h_dR.Fill(track13.DeltaR(track24))
-                    h_dR.Fill(track14.DeltaR(track23))
-
-                    # DV pair combination
-                    # Pair = [(1,2), (3,4)] or [(1,3), (2,4)] or [(1,4), (2,3)]
-                    diff12 = r.TMath.Abs(m_kshort - mass_12)
-                    diff13 = r.TMath.Abs(m_kshort - mass_13)
-                    diff14 = r.TMath.Abs(m_kshort - mass_14)
-                    diff23 = r.TMath.Abs(m_kshort - mass_23)
-                    diff24 = r.TMath.Abs(m_kshort - mass_24)
-                    diff34 = r.TMath.Abs(m_kshort - mass_34)
-                    charge12 = charge1 * charge2
-                    charge13 = charge1 * charge3
-                    charge14 = charge1 * charge4
-                    charge23 = charge2 * charge3
-                    charge24 = charge2 * charge4
-                    charge34 = charge3 * charge4
-                    
-                    if ((diff12 < 0.05 and charge12 == -1) or (diff34 < 0.05 and charge34 == -1)):
-                        h_mv_4track.Fill((track1 + track2 + track3 + track4).M())
-                    if ((diff13 < 0.05 and charge13 == -1) or (diff24 < 0.05 and charge24 == -1)):
-                        h_mv_4track.Fill((track1 + track2 + track3 + track4).M())
-                    if ((diff14 < 0.05 and charge14 == -1) or (diff23 < 0.05 and charge23 == -1)):
-                        h_mv_4track.Fill((track1 + track2 + track3 + track4).M())
-                        
-                    if (diff12 < 0.05 and charge12 == -1):
-                        h_ditrack_from4trk.Fill((track3 + track4).M())
-                    if (diff34 < 0.05 and charge34 == -1):
-                        h_ditrack_from4trk.Fill((track1 + track2).M())
-                    if (diff13 < 0.05 and charge13 == -1):
-                        h_ditrack_from4trk.Fill((track2 + track4).M())
-                    if (diff24 < 0.05 and charge24 == -1):
-                        h_ditrack_from4trk.Fill((track1 + track3).M())
-                    if (diff14 < 0.05 and charge14 == -1):
-                        h_ditrack_from4trk.Fill((track2 + track3).M())
-                    if (diff23 < 0.05 and charge23 == -1):
-                        h_ditrack_from4trk.Fill((track1 + track4).M())
-
-                        
         outputFile.Write()
         outputFile.Close()
-        nFile += 1
     else:
         break

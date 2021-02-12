@@ -320,7 +320,7 @@ while True:
                     if (doWeight):
                         if region1 == -1:
                             continue
-                        ratioFile = r.TFile("ratio.root", "READ")
+                        ratioFile = r.TFile("ratio_insideMaterial.root", "READ")
                         sig4Ratio = ratioFile.Get("sig4_ratio")
                         sig4Ratio_region = ratioFile.Get("sig_4_{}_ratio".format(regions[region1]))
                         sig5Ratio = ratioFile.Get("sig5_ratio")

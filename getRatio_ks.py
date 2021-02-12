@@ -18,15 +18,17 @@ inputFile = args.inputFileName
 inFile = r.TFile(inputFile, "READ")
 
 date = str(datetime.date.today())
-directory = str(os.getcwd()) + "/plots/" + date + "/ratio"
+directory = str(os.getcwd()) + "/plots/" + date + "/ratio_ks"
 if (not os.path.isdir(directory)):
     os.makedirs(directory)
 
 label = "Internal"
 
-outputFile = r.TFile("ratio_insideMaterial.root", "RECREATE")
+outputFile = r.TFile("ratio_ks.root", "RECREATE")
 c = r.TCanvas("c", "c", 800, 600)
-sig4_same, sig4 = getHists(inFile, "sig4")
+#sig4_same, sig4 = getHists(inFile, "sig4")
+sig4_same = inFile.Get("sig4_same_ks")
+sig4 = inFile.Get("sig4_mixed_ks")
 bin1 = sig4.FindBin(100)
 bin2 = sig4.GetNbinsX() + 1
 sf4trk = getSF(sig4_same, sig4, bin1, bin2)
@@ -42,8 +44,11 @@ sig4_zoomed.GetXaxis().SetRange(1, bin1+1)
 h_ratio4track_zoomed = getRatio(sig4_same_zoomed, sig4_zoomed)
 ratioPlot(sig4_same_zoomed, sig4_zoomed, directory, "ratio4track_zoomed", label)
 
+"""
 # 5-track
-sig5_same, sig5 = getHists(inFile, "sig5")
+#sig5_same, sig5 = getHists(inFile, "sig5")
+sig5_same = inFile.Get("sig5_same_ks")
+sig5 = inFile.Get("sig5_mixed_ks")
 sf5trk = getSF(sig5_same, sig5, bin1, bin2)
 sig5_same.Rebin(2), sig5.Rebin(2)
 sig5.Sumw2()
@@ -59,7 +64,9 @@ h_ratio5track_zoomed = getRatio(sig5_same_zoomed, sig5_zoomed)
 ratioPlot(sig5_same_zoomed, sig5_zoomed, directory, "ratio5track_zoomed", label)
 
 # 6-track
-sig6_same, sig6 = getHists(inFile, "sig6")
+#sig6_same, sig6 = getHists(inFile, "sig6")
+sig6_same = inFile.Get("sig6_same_ks")
+sig6 = inFile.Get("sig6_mixed_ks")
 sf6trk = getSF(sig6_same, sig6, bin1, bin2)
 sig6_same.Rebin(4), sig6.Rebin(4)
 sig6.Sumw2()
@@ -73,6 +80,7 @@ sig6_same_zoomed.GetXaxis().SetRange(1, sig6_same_zoomed.FindBin(100))
 sig6_zoomed.GetXaxis().SetRange(1, sig6_same_zoomed.FindBin(100)+1)
 h_ratio6track_zoomed = getRatio(sig6_same_zoomed, sig6_zoomed)
 ratioPlot(sig6_same_zoomed, sig6_zoomed, directory, "ratio6track_zoomed", label)
+"""
 
 # Region definition
 regions = ["inside_BP", "inside_IBL", "PIX", "inside_SCT"]
@@ -84,12 +92,14 @@ sig5_region = []
 sig6_same_region = []
 sig6_region = []
 for region in regions:
-    sig4_same_region.append(inFile.Get("sig_4_same_{}".format(region)))
-    sig4_region.append(inFile.Get("sig_4_mixed_{}".format(region)))
-    sig5_same_region.append(inFile.Get("sig_5_same_{}".format(region)))
-    sig5_region.append(inFile.Get("sig_5_mixed_{}".format(region)))
-    sig6_same_region.append(inFile.Get("sig_6_same_{}".format(region)))
-    sig6_region.append(inFile.Get("sig_6_mixed_{}".format(region)))
+    sig4_same_region.append(inFile.Get("sig4_same_ks_{}".format(region)))
+    sig4_region.append(inFile.Get("sig4_mixed_ks_{}".format(region)))
+    """
+    sig5_same_region.append(inFile.Get("sig_5_same_ks_{}".format(region)))
+    sig5_region.append(inFile.Get("sig_5_mixed_ks_{}".format(region)))
+    sig6_same_region.append(inFile.Get("sig_6_same_ks_{}".format(region)))
+    sig6_region.append(inFile.Get("sig_6_mixed_ks_{}".format(region)))
+    """
     
 h_ratio4_region = []
 h_ratio5_region = []
@@ -101,6 +111,7 @@ for i in range(len(sig4_region)):
     sig4_region[i].Scale(sf4)
     h_ratio4_region.append(getRatio(sig4_same_region[i], sig4_region[i]))
     ratioPlot(sig4_same_region[i], sig4_region[i], directory, "ratio4track_{}".format(regions[i]), label)
+    """
     # 5-track
     sig5_same_region[i].Rebin(2), sig5_region[i].Rebin(2)
     bin1 = sig5_region[i].FindBin(100)
@@ -119,12 +130,15 @@ for i in range(len(sig4_region)):
     sig6_region[i].Scale(sf6)
     h_ratio6_region.append(getRatio(sig6_same_region[i], sig6_region[i]))
     ratioPlot(sig6_same_region[i], sig6_region[i], directory, "ratio6track_{}".format(regions[i]), label)
+    """
     
 for i in range(len(h_ratio4_region)):
     h_ratio4_region[i].Write()
+    """
     h_ratio5_region[i].Write()
     h_ratio6_region[i].Write()
-
+    """
+"""
 # DV-Jet
 h_dRJetDV1_same, h_dRJetDV1_mixed = getHists(inFile, "dR_jetDV1")
 h_dRJetDV1_same.Sumw2()
@@ -193,10 +207,13 @@ for i in range(len(h_dR_jetDV1_ratio_region)):
     h_dR_jetDV1_ratio_region[i].Write()
     h_dR_jetDV2_ratio_region[i].Write()
     h_dR_jetDV_ratio_region[i].Write()
+"""
     
 h_ratio4track.Write()
+"""
 h_ratio5track.Write()
 h_ratio6track.Write()
 dRJetDV1_ratio.Write()
 dRJetDV2_ratio.Write()
 dRJetDV_ratio.Write()
+"""

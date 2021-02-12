@@ -2,11 +2,14 @@ import ROOT as r
 import numpy as np
 from scipy.spatial import distance
 
+m_pion = 139.57 * 0.001 # GeV
+m_kshort = 497.61 * 0.001 # GeV
+m_proton = 938.27 * 0.001 # GeV
+
 def trackCleaning(tree, idv):
     # Return tracks which pass the cleaning criteria
     # Input : TTree
     track = []
-    m_pion = 139.57*0.001 # GeV
     for itrack in range(len(tree.dvtrack_ptWrtDV)):
         if ( (tree.DV_index[idv] != tree.dvtrack_DVIndex[itrack])):
             continue
@@ -172,3 +175,44 @@ def getDVTracks(dvtracks):
         if (itrack[4] == 0):
             nTracksSel += 1
     return DVtracks, nTracks, nTracksSel
+
+def isKshort(mdv, charge):
+    isOS = True if (charge == -1) else False
+    m_diff = r.TMath.Abs(mdv - m_kshort)
+    isKshort = True if (m_diff < 0.05 and isOS) else False
+    return isKshort
+
+def isSideband(mdv, mean, sigma):
+    # Lower:  (mean - 6sigma) <= mdv <= (mean - 3sigma)
+    # Higher: (mean + 3sigma) <= mdv <= (mean + 6sigma)
+    isLower  = True if (mdv >= (mean-6*sigma) and mdv <= (mean - 3*sigma)) else False
+    isHigher = True if (mdv >= (mean-3*sigma) and mdv <= (mean + 6*sigma)) else False
+    isSideband = True if (isLower and isHigher) else False
+    return isLower, isHigher, isSideband
+
+def get_DVPV(idv, PV_x, PV_y, PV_z, DV_x, DV_y, DV_z):
+    PV = r.TVector3(PV_x, PV_y, PV_z)
+    DV = r.TVector(DV_x[idv], DV_y[idv], DV_z[idv])
+    v_DVPV = DV - PV
+    return v_DVPV
+
+def get_dEta(DV_PV, trackIndex, dvtrack_etaWrtDV):
+    DVPV_zy = r.TVector2(DV_PV.Z(), DV_PV.Y())
+    cosTheta = DV_PV.Z() / DVPV_zy.Mod()
+    if (r.TMath.Abs(cosTheta) > 1.):
+        print("Error! cosTheta = {}, DV_PV_z = {}, |DV-PV| = {}".format(cosTheta, DV_PV.Z(), DV_PV.Mag()))
+        return 0
+    theta_DVPV = r.TMath.ACos(cosTheta)
+
+    eta_DVPV = 1.*r.TMath.Log(r.TMath.Tan(theta_DVPV/2.))
+    return (dta_DVPV - dvtrack_etaWrtDV[trackIndex])
+
+def get_dPhi(DV_PV, trackIndex, dvtrack_phiWrtDV):
+    phi_DVPV = DV_PV.Phi()
+    phi_DV = dvtrack_phiWrtDV[trackIndex]
+    dPhi = phi_DVPV - phi_DV
+    if (dPhi >= r.TMath.Pi()):
+        dPhi -= 2*r.TMath.Pi()
+    if (dPhi < -r.TMath.Pi()):
+        dPhi += 2*r.TMath.Pi()
+    return dPhi
